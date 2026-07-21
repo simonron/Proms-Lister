@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Proms Lister 2026</title><meta name="theme-color" content="#f6f1e4">
+<title>Simon's Proms Lister 2026</title><meta name="theme-color" content="#f6f1e4">
 <link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Proms Lister">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -45,3 +45,4 @@ async function importBackup(file){const zip=await JSZip.loadAsync(file),entry=zi
 $('backdrop').onclick=closeSheet;$('close').onclick=closeSheet;$('q').oninput=render;$('from').onchange=render;$('to').onchange=render;$('all').onclick=()=>{$('from').value='';$('to').value='';render()};$('today').onclick=()=>{const d=new Date().toISOString().slice(0,10);$('from').value=d;$('to').value=d;render()};$('weekend').onclick=()=>{const n=new Date(),off=(6-n.getDay()+7)%7,s=new Date(n);s.setDate(n.getDate()+off);const u=new Date(s);u.setDate(s.getDate()+1);$('from').value=s.toISOString().slice(0,10);$('to').value=u.toISOString().slice(0,10);render()};$('ticketOnly').onclick=()=>{ticketOnly=!ticketOnly;$('ticketOnly').classList.toggle('active',ticketOnly);render()};$('choosePdf').onclick=()=>{window.attachTarget=null;$('pdfPick').click()};$('pdfPick').onchange=e=>importPdfs([...e.target.files]);$('exportBackup').onclick=exportBackup;$('importBackup').onclick=()=>$('backupPick').click();$('backupPick').onchange=async e=>{try{await importBackup(e.target.files[0])}catch(err){alert('Backup import failed: '+err.message)}};const drop=$('drop');['dragenter','dragover'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.add('drag')}));['dragleave','drop'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.remove('drag')}));drop.addEventListener('drop',e=>importPdfs([...e.dataTransfer.files].filter(f=>f.type==='application/pdf'||f.name.toLowerCase().endsWith('.pdf'))));window.addEventListener('storage',render);window.addEventListener('focus',render);
 fetch('data.json').then(r=>r.json()).then(d=>{concerts=d.filter(c=>/royal albert hall/i.test(c.venue||''));render()}).catch(()=>{$('count').textContent='';$('results').innerHTML='<div class="empty">Concert data could not be loaded. Run this through GitHub Pages or a local web server.</div>'});
 </script></body></html>
+TEST
