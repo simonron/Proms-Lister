@@ -108,39 +108,51 @@ function parseTicket(text){const section=(text.match(/(?:Section|Stalls|Rausing 
 let ok=0,fail=[];
 for(const file of files){
 try{
-let extractedText='';
 const isPdf=file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf');
 
 if(isPdf){
-extractedText=await pdfText(file);
-}else if(!window.attachTarget){
-extractedText=prompt(
-'Ticket photo detected.\n\nEnter the Prom title, date, or other identifying details so it can be matched:',
-''
-)||'';
-}
+const pages=await pdfPages(file);
 
-const c=window.attachTarget||matchConcert(extractedText);
-if(!c){
-fail.push(file.name);
-continue;
-}
+for(const pageText of pages){
+const c=window.attachTarget||matchConcert(pageText);
+if(!c)continue;
 
-const parsed=isPdf?parseTicket(extractedText):{};
+const parsed=parseTicket(pageText);
 const all=loadTickets(),k=keyFor(c),old=all[k]||{};
 const storedType=file.type||mimeForName(file.name)||'application/octet-stream';
 const storedBlob=new Blob([file],{type:storedType});
 
-all[k]={
-...old,
-...parsed,
-hasTicket:true,
-pdfName:file.name,
-fileType:storedType
-};
+all[k]={...old,...parsed,hasTicket:true,pdfName:file.name,fileType:storedType};
 
 saveTickets(all);
-await pdfPut(k,storedBlob,file.name);if(getSyncConfig())await cloudUploadFile(k,storedBlob,file.name,storedType);ok++;
+await pdfPut(k,storedBlob,file.name);
+if(getSyncConfig())await cloudUploadFile(k,storedBlob,file.name,storedType);
+ok++;
+}
+window.attachTarget=null;
+continue;
+}
+
+let extractedText='';
+if(!window.attachTarget){
+extractedText=prompt('Ticket photo detected.
+
+Enter the Prom title, date, or other identifying details so it can be matched:','')||'';
+}
+
+const c=window.attachTarget||matchConcert(extractedText);
+if(!c){fail.push(file.name);continue;}
+
+const all=loadTickets(),k=keyFor(c),old=all[k]||{};
+const storedType=file.type||mimeForName(file.name)||'application/octet-stream';
+const storedBlob=new Blob([file],{type:storedType});
+
+all[k]={...old,hasTicket:true,pdfName:file.name,fileType:storedType};
+
+saveTickets(all);
+await pdfPut(k,storedBlob,file.name);
+if(getSyncConfig())await cloudUploadFile(k,storedBlob,file.name,storedType);
+ok++;
 window.attachTarget=null;
 }catch(e){
 console.error(e);
