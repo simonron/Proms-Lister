@@ -141,4 +141,3 @@ drop.addEventListener(
 window.addEventListener('storage',render);window.addEventListener('focus',render);
 fetch('data.json').then(r=>r.json()).then(d=>{concerts=d.filter(c=>/royal albert hall/i.test(c.venue||''));render()}).catch(()=>{$('count').textContent='';$('results').innerHTML='<div class="empty">Concert data could not be loaded. Run this through GitHub Pages or a local web server.</div>'});
 </script></body></html>
-TEST
