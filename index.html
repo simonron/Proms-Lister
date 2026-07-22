@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Proms Lister 2026</title><meta name="theme-color" content="#f6f1e4">
 <link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Proms Lister">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Proms Lister">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -13,15 +13,51 @@ header{position:sticky;top:0;z-index:20;background:rgba(246,241,228,.98);border-
 .search{margin-top:11px;background:white;border:1.5px solid var(--ink);border-radius:10px;display:flex;padding:9px 11px;gap:8px}.search input{border:0;outline:0;flex:1;font-size:16px;min-width:0}.tools,.filters{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px;align-items:center}.filters label{font-size:11px;text-transform:uppercase;color:var(--sage);font-weight:700}.filters input{padding:5px;border:1px solid var(--rule);border-radius:7px;background:white}.chip,.tool{border:1px solid var(--rule);background:white;border-radius:999px;padding:7px 11px;font-weight:700}.chip.active,.tool.primary{background:var(--maroon);color:white;border-color:var(--maroon)}.tool.gold{background:#fff3d8;border-color:var(--gold)}
 main{max-width:900px;margin:auto;padding:12px 14px 55px}.drop{border:2px dashed var(--gold);background:#fff8e9;border-radius:14px;padding:15px;text-align:center;margin:4px 0 14px}.drop.drag{background:#f0d89f}.muted{font-size:12px;color:var(--sage)}.status{font-size:12px;color:var(--green);min-height:18px;margin-top:5px}.count{font-size:12px;color:var(--sage);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin:8px 0}.day{margin:18px 3px 7px;border-bottom:1px solid var(--rule);font:700 15px Iowan Old Style,Georgia,serif;color:var(--deep)}.card{position:relative;background:white;border:1px solid var(--rule);border-radius:12px;padding:12px 14px;margin-bottom:9px;cursor:pointer}.card.ticket{border-left:7px solid var(--gold)}.top{display:flex;justify-content:space-between;gap:10px}.title{font:700 17px Iowan Old Style,Georgia,serif}.time{font-size:12px;color:var(--maroon);font-weight:800;white-space:nowrap}.venue{font-size:13px;color:var(--sage);font-weight:650;margin-top:4px}.programme{font-size:13px;color:#4a453d;margin-top:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.flag{position:absolute;right:9px;bottom:7px;font-size:20px;border:0;background:transparent;padding:4px}.ticket-info{font-size:12px;color:var(--maroon);font-weight:750;margin-top:7px;padding-right:38px}.empty{text-align:center;color:var(--sage);padding:50px}
 .backdrop{position:fixed;inset:0;background:rgba(33,28,24,.5);z-index:40;display:none}.backdrop.open{display:block}.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;max-height:91vh;overflow:auto;background:var(--paper);border-radius:18px 18px 0 0;border-top:2px solid var(--ink);padding:18px 20px calc(30px + env(safe-area-inset-bottom));transform:translateY(100%);transition:.2s}.sheet.open{transform:none}.close{float:right;border:0;background:var(--paper2);border-radius:50%;width:34px;height:34px}.sheet h2{font:700 26px Iowan Old Style,Georgia,serif;color:var(--deep);margin:8px 38px 10px 0}.meta{display:flex;gap:14px;flex-wrap:wrap;font-size:13px}.meta b,.section h3,.field span{display:block;font-size:11px;text-transform:uppercase;color:var(--sage);letter-spacing:.8px}.section{margin-top:16px}.section h3{border-bottom:1px solid var(--rule);padding-bottom:4px;color:var(--maroon)}.section p{line-height:1.55}.ticketbox{background:#fff8e9;border:1px solid var(--gold);border-radius:13px;padding:13px;margin-top:16px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.field{display:block;margin-top:9px}.field input,.field select,.field textarea{width:100%;padding:9px;border:1px solid var(--rule);border-radius:8px;background:white}.field textarea{min-height:74px}.check{display:flex;gap:8px;align-items:center;font-weight:800}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.btn{border:1px solid var(--rule);background:white;border-radius:9px;padding:9px 11px;font-weight:750}.btn.primary{background:var(--maroon);color:white;border-color:var(--maroon)}.btn.danger{color:var(--red)}.quick{font-size:12px}.pdfbadge{color:var(--green);font-weight:800}.warning{color:var(--red);font-weight:800}.syncnote{margin-top:8px;background:#fff8e9;border-left:4px solid var(--gold);padding:9px;border-radius:7px;font-size:12px}
-@media(max-width:620px){.grid{grid-template-columns:1fr}.tools .tool{flex:1 1 auto}.filters{align-items:flex-end}.filters label{flex:1}.filters input{width:100%}}
+
+.app-page{display:none;min-height:100vh}.app-page.active{display:block}.page-head{position:sticky;top:0;z-index:20;background:rgba(246,241,228,.98);border-bottom:2px solid var(--ink);padding:calc(env(safe-area-inset-top) + 10px) 14px 10px}.page-head-inner{max-width:900px;margin:auto}.page-title-row{display:flex;align-items:center;gap:10px}.page-title{font:700 clamp(22px,6vw,32px) Iowan Old Style,Georgia,serif;color:var(--deep);margin:0;flex:1}.back-home{border:1px solid var(--rule);background:white;border-radius:999px;padding:8px 12px;font-weight:800}.home-wrap{max-width:720px;margin:auto;padding:calc(env(safe-area-inset-top) + 28px) 18px 40px}.home-hero{background:linear-gradient(145deg,var(--deep),var(--maroon));color:white;border-radius:22px;padding:26px 22px;box-shadow:0 16px 40px rgba(40,20,20,.18)}.home-hero h1{font:700 clamp(34px,10vw,54px) Iowan Old Style,Georgia,serif;margin:0 0 8px}.home-hero p{margin:0;color:#f4e9da}.home-menu{display:grid;gap:12px;margin-top:18px}.home-button{width:100%;text-align:left;border:1px solid var(--rule);background:white;border-radius:16px;padding:17px 18px;font-weight:850;font-size:18px;box-shadow:0 7px 18px rgba(50,35,25,.06)}.home-button small{display:block;font-size:12px;color:var(--sage);font-weight:650;margin-top:4px}.home-button.gold{border-color:var(--gold);background:#fff8e9}.home-footer{font-size:12px;color:var(--sage);text-align:center;margin-top:22px}.list-main{max-width:900px;margin:auto;padding:12px 14px 55px}.import-main{max-width:700px;margin:auto;padding:18px 14px 55px}.import-actions{display:grid;gap:10px;margin-top:14px}.import-actions .tool{border-radius:12px;padding:13px}.list-tools{padding-top:2px}.mode-note{font-size:12px;color:var(--sage);margin-top:7px}.tonight-banner{background:#fff8e9;border:1px solid var(--gold);border-radius:12px;padding:11px;margin:10px 0;display:none}.tonight-banner.show{display:block}
+@media(max-width:620px){.grid{grid-template-columns:1fr}.tools .tool{flex:1 1 auto}.filters{align-items:flex-end}.filters label{flex:1}.filters input{width:100%}.page-head{position:sticky}.search{margin-top:8px}.filters{margin-top:7px}.filters label{min-width:calc(50% - 5px)}.home-wrap{padding-left:14px;padding-right:14px}.list-main{padding-top:8px}}
+
 </style></head><body>
-<header><div class="head"><div class="row"><div><h1>Proms Lister</h1><div class="sub">Royal Albert Hall Proms, tickets and seat notes</div></div><div class="season">17 Jul–12 Sep 2026</div></div>
-<div class="search"><span>⌕</span><input id="q" placeholder="Search titles, composers, performers, seats, notes…"></div>
-<div class="filters"><label>From <input id="from" type="date"></label><label>To <input id="to" type="date"></label><button class="chip" id="today">Today</button><button class="chip" id="weekend">Weekend</button><button class="chip" id="all">All dates</button><button class="chip" id="ticketOnly">My tickets</button></div>
-<div class="tools"><button class="tool gold" id="choosePdf">Import ticket PDF(s) or Photo(s)</button><button class="tool" id="exportBackup">Export phone/desktop backup</button><button class="tool" id="importBackup">Import backup</button></div>
-<input id="pdfPick" type="file" accept=".pdf,application/pdf,image/*" multiple hidden><input id="backupPick" type="file" accept=".zip,application/zip" hidden>
-</div></header>
-<main><div id="drop" class="drop"><b>Drop Royal Albert Hall ticket PDFs or Photos here</b><br><span class="muted">Tickets stay on this device unless you export a backup.</span><div id="importStatus" class="status"></div></div><div id="count" class="count">Loading…</div><div id="results"></div></main>
+<div id="homePage" class="app-page active">
+  <div class="home-wrap">
+    <section class="home-hero">
+      <h1>Proms Lister</h1>
+      <p>Royal Albert Hall Proms, tickets and seat notes</p>
+      <div class="season" style="color:#efd8bb;margin-top:12px">17 Jul–12 Sep 2026</div>
+    </section>
+    <nav class="home-menu" aria-label="Proms Lister sections">
+      <button id="homeTonight" class="home-button gold">Tonight’s Prom<small>Open today’s Royal Albert Hall concert</small></button>
+      <button id="homeBrowse" class="home-button">Browse Proms<small>Search and view the full 2026 concert list</small></button>
+      <button id="homeTickets" class="home-button">My Tickets <span id="homeTicketCount"></span><small>Show only Proms for which a ticket is recorded</small></button>
+      <button id="homeImport" class="home-button">Import &amp; Transfer<small>Read PDFs and ticket photos; export or import a backup</small></button>
+    </nav>
+    <div class="home-footer">Ticket files remain on this device unless transferred using a backup.</div>
+  </div>
+</div>
+
+<div id="listPage" class="app-page">
+  <header class="page-head"><div class="page-head-inner">
+    <div class="page-title-row"><button class="back-home" data-home>← Start</button><h1 id="listPageTitle" class="page-title">Browse Proms</h1></div>
+    <div class="search"><span>⌕</span><input id="q" placeholder="Search titles, composers, performers, seats, notes…"></div>
+    <div class="filters"><label>From <input id="from" type="date"></label><label>To <input id="to" type="date"></label><button class="chip" id="today">Today</button><button class="chip" id="weekend">Weekend</button><button class="chip" id="all">All dates</button><button class="chip" id="ticketOnly">My tickets</button></div>
+    <div id="listModeNote" class="mode-note"></div>
+  </div></header>
+  <main class="list-main"><div id="tonightBanner" class="tonight-banner"></div><div id="count" class="count">Loading…</div><div id="results"></div></main>
+</div>
+
+<div id="importPage" class="app-page">
+  <header class="page-head"><div class="page-head-inner"><div class="page-title-row"><button class="back-home" data-home>← Start</button><h1 class="page-title">Import &amp; Transfer</h1></div></div></header>
+  <main class="import-main">
+    <div id="drop" class="drop"><b>Drop Royal Albert Hall ticket PDFs or Photos here</b><br><span class="muted">Every PDF page is examined. Photos are read using OCR.</span><div id="importStatus" class="status"></div></div>
+    <div class="import-actions">
+      <button class="tool gold" id="choosePdf">Choose ticket PDF(s) or Photo(s)</button>
+      <button class="tool" id="exportBackup">Export phone/desktop backup</button>
+      <button class="tool" id="importBackup">Import backup</button>
+    </div>
+    <p class="syncnote">The ZIP backup includes ticket details, notes, PDFs and ticket photos. Use the same file to transfer between iPhone and desktop.</p>
+    <input id="pdfPick" type="file" accept=".pdf,application/pdf,image/*" multiple hidden><input id="backupPick" type="file" accept=".zip,application/zip" hidden>
+  </main>
+</div>
 <div id="backdrop" class="backdrop"></div><div id="sheet" class="sheet"><button id="close" class="close">×</button><div id="detail"></div></div>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -41,7 +77,39 @@ if(n.endsWith('.heic'))return'image/heic';
 if(n.endsWith('.heif'))return'image/heif';
 return'';
 }
-function render(){const q=$('q').value.trim(),re=q?wildcard(q):null,from=$('from').value,to=$('to').value,all=loadTickets();const list=concerts.filter(c=>{const t=all[keyFor(c)]||{};const hay=[c.title,c.programme,c.performers,c.venue,c.city,t.area,t.section,t.row,t.seat,t.door,t.reference,t.notes].join(' ');return(!from||c.date>=from)&&(!to||c.date<=to)&&(!re||re.test(hay))&&(!ticketOnly||t.hasTicket)});$('count').textContent=`${list.length} Royal Albert Hall concert${list.length===1?'':'s'}`;$('results').innerHTML=list.length?'':'<div class="empty">No matching concerts.</div>';let last='';for(const c of list){if(c.date!==last){const d=document.createElement('div');d.className='day';d.textContent=fmt(c.date);$('results').appendChild(d);last=c.date}const t=all[keyFor(c)]||{},att=t.hasTicket&&new Date(c.date+'T23:59:59')<new Date(),where=[t.section||t.area,t.row&&`Row ${t.row}`,t.seat&&`Seat ${t.seat}`].filter(Boolean).join(' · ');const el=document.createElement('article');el.className='card'+(t.hasTicket?' ticket':'');el.innerHTML=`<div class="top"><div class="title">${esc(c.title)}</div><div class="time">${esc(c.time)}</div></div><div class="venue">${esc(c.venue)}</div>${c.programme?`<div class="programme">${esc(c.programme)}</div>`:''}${t.hasTicket?`<div class="ticket-info">${att?'Attended':'Ticket'}${where?' · '+esc(where):''}${t.door?' · Door '+esc(t.door):''}${t.pdfName?' · Ticket attached':''}</div><button class="flag" title="Open Ticket">${att?'✅':'🎟'}</button>`:''}`;el.onclick=e=>{if(e.target.classList.contains('flag')){e.stopPropagation();openPdf(c)}else openDetail(c)};$('results').appendChild(el)}}
+
+const PAGE_KEY='promsListerPageV1';
+function showPage(id,{remember=true}={}){
+ document.querySelectorAll('.app-page').forEach(p=>p.classList.toggle('active',p.id===id));
+ if(remember)localStorage.setItem(PAGE_KEY,id);
+ window.scrollTo(0,0);
+ if(id==='homePage')updateHome();
+}
+function updateHome(){
+ const all=loadTickets();
+ const n=Object.values(all).filter(t=>t&&t.hasTicket).length;
+ const el=$('homeTicketCount');if(el)el.textContent=n?`(${n})`:'';
+ const today=new Date().toISOString().slice(0,10);
+ const tonight=concerts.find(c=>c.date===today);
+ const b=$('homeTonight');if(b){b.disabled=!tonight;b.style.opacity=tonight?'1':'.55';b.querySelector('small').textContent=tonight?`${tonight.time} · ${tonight.title}`:'No Royal Albert Hall Prom today'}
+}
+function openList(mode='all'){
+ ticketOnly=mode==='tickets';
+ $('ticketOnly').classList.toggle('active',ticketOnly);
+ $('listPageTitle').textContent=ticketOnly?'My Tickets':'Browse Proms';
+ $('listModeNote').textContent=ticketOnly?'Only ticketed Proms are shown.':'All Royal Albert Hall Proms are shown.';
+ showPage('listPage');render();
+}
+function openTonight(){
+ const today=new Date().toISOString().slice(0,10);
+ const c=concerts.find(x=>x.date===today);
+ if(!c){alert('There is no Royal Albert Hall Prom today.');return}
+ ticketOnly=false;$('from').value=today;$('to').value=today;$('ticketOnly').classList.remove('active');
+ $('listPageTitle').textContent='Tonight’s Prom';$('listModeNote').textContent='Today’s Royal Albert Hall concert.';
+ $('tonightBanner').classList.add('show');$('tonightBanner').textContent=`${c.time} · ${c.title}`;
+ showPage('listPage');render();
+}
+function render(){const q=$('q').value.trim(),re=q?wildcard(q):null,from=$('from').value,to=$('to').value,all=loadTickets();const list=concerts.filter(c=>{const t=all[keyFor(c)]||{};const hay=[c.title,c.programme,c.performers,c.venue,c.city,t.area,t.section,t.row,t.seat,t.door,t.reference,t.notes].join(' ');return(!from||c.date>=from)&&(!to||c.date<=to)&&(!re||re.test(hay))&&(!ticketOnly||t.hasTicket)});$('count').textContent=`${list.length} Royal Albert Hall concert${list.length===1?'':'s'}`;$('results').innerHTML=list.length?'':'<div class="empty">No matching concerts.</div>';let last='';for(const c of list){if(c.date!==last){const d=document.createElement('div');d.className='day';d.textContent=fmt(c.date);$('results').appendChild(d);last=c.date}const t=all[keyFor(c)]||{},att=t.hasTicket&&new Date(c.date+'T23:59:59')<new Date(),where=[t.section||t.area,t.row&&`Row ${t.row}`,t.seat&&`Seat ${t.seat}`].filter(Boolean).join(' · ');const el=document.createElement('article');el.className='card'+(t.hasTicket?' ticket':'');el.innerHTML=`<div class="top"><div class="title">${esc(c.title)}</div><div class="time">${esc(c.time)}</div></div><div class="venue">${esc(c.venue)}</div>${c.programme?`<div class="programme">${esc(c.programme)}</div>`:''}${t.hasTicket?`<div class="ticket-info">${att?'Attended':'Ticket'}${where?' · '+esc(where):''}${t.door?' · Door '+esc(t.door):''}${t.pdfName?' · Ticket attached':''}</div><button class="flag" title="Open Ticket">${att?'✅':'🎟'}</button>`:''}`;el.onclick=e=>{if(e.target.classList.contains('flag')){e.stopPropagation();openPdf(c)}else openDetail(c)};$('results').appendChild(el)}updateHome()}
 	async function openPdf(c){
 const rec=await pdfGet(keyFor(c));
 if(!rec){
@@ -135,6 +203,12 @@ await Promise.all(jobs);
 render();
 $('importStatus').textContent='Backup imported. Ticket flags, notes and attached ticket files are now available on this device.';
 }
-$('backdrop').onclick=closeSheet;$('close').onclick=closeSheet;$('q').oninput=render;$('from').onchange=render;$('to').onchange=render;$('all').onclick=()=>{$('from').value='';$('to').value='';render()};$('today').onclick=()=>{const d=new Date().toISOString().slice(0,10);$('from').value=d;$('to').value=d;render()};$('weekend').onclick=()=>{const n=new Date(),off=(6-n.getDay()+7)%7,s=new Date(n);s.setDate(n.getDate()+off);const u=new Date(s);u.setDate(s.getDate()+1);$('from').value=s.toISOString().slice(0,10);$('to').value=u.toISOString().slice(0,10);render()};$('ticketOnly').onclick=()=>{ticketOnly=!ticketOnly;$('ticketOnly').classList.toggle('active',ticketOnly);render()};$('choosePdf').onclick=()=>{window.attachTarget=null;$('pdfPick').click()};$('pdfPick').onchange=async e=>{await importPdfs([...e.target.files]);e.target.value=''};$('exportBackup').onclick=exportBackup;$('importBackup').onclick=()=>$('backupPick').click();$('backupPick').onchange=async e=>{try{if(e.target.files[0])await importBackup(e.target.files[0])}catch(err){alert('Backup import failed: '+err.message)}finally{e.target.value=''}};const drop=$('drop');['dragenter','dragover'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.add('drag')}));['dragleave','drop'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.remove('drag')}));drop.addEventListener('drop',e=>importPdfs([...e.dataTransfer.files].filter(f=>f.type==='application/pdf'||f.type.startsWith('image/')||f.name.toLowerCase().endsWith('.pdf'))));window.addEventListener('storage',render);window.addEventListener('focus',render);
-fetch('data.json').then(r=>r.json()).then(d=>{concerts=d.filter(c=>/royal albert hall/i.test(c.venue||''));render()}).catch(()=>{$('count').textContent='';$('results').innerHTML='<div class="empty">Concert data could not be loaded. Run this through GitHub Pages or a local web server.</div>'});
+
+document.querySelectorAll('[data-home]').forEach(b=>b.onclick=()=>showPage('homePage'));
+$('homeBrowse').onclick=()=>openList('all');
+$('homeTickets').onclick=()=>openList('tickets');
+$('homeImport').onclick=()=>showPage('importPage');
+$('homeTonight').onclick=openTonight;
+$('backdrop').onclick=closeSheet;$('close').onclick=closeSheet;$('q').oninput=render;$('from').onchange=render;$('to').onchange=render;$('all').onclick=()=>{$('from').value='';$('to').value='';$('tonightBanner').classList.remove('show');render()};$('today').onclick=()=>{const d=new Date().toISOString().slice(0,10);$('from').value=d;$('to').value=d;render()};$('weekend').onclick=()=>{const n=new Date(),off=(6-n.getDay()+7)%7,s=new Date(n);s.setDate(n.getDate()+off);const u=new Date(s);u.setDate(s.getDate()+1);$('from').value=s.toISOString().slice(0,10);$('to').value=u.toISOString().slice(0,10);render()};$('ticketOnly').onclick=()=>{ticketOnly=!ticketOnly;$('ticketOnly').classList.toggle('active',ticketOnly);$('listPageTitle').textContent=ticketOnly?'My Tickets':'Browse Proms';$('listModeNote').textContent=ticketOnly?'Only ticketed Proms are shown.':'All Royal Albert Hall Proms are shown.';render()};$('choosePdf').onclick=()=>{window.attachTarget=null;$('pdfPick').click()};$('pdfPick').onchange=async e=>{await importPdfs([...e.target.files]);e.target.value=''};$('exportBackup').onclick=exportBackup;$('importBackup').onclick=()=>$('backupPick').click();$('backupPick').onchange=async e=>{try{if(e.target.files[0])await importBackup(e.target.files[0])}catch(err){alert('Backup import failed: '+err.message)}finally{e.target.value=''}};const drop=$('drop');['dragenter','dragover'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.add('drag')}));['dragleave','drop'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.remove('drag')}));drop.addEventListener('drop',e=>importPdfs([...e.dataTransfer.files].filter(f=>f.type==='application/pdf'||f.type.startsWith('image/')||f.name.toLowerCase().endsWith('.pdf'))));window.addEventListener('storage',render);window.addEventListener('focus',render);
+fetch('data.json').then(r=>r.json()).then(d=>{concerts=d.filter(c=>/royal albert hall/i.test(c.venue||''));render();updateHome();showPage('homePage',{remember:false})}).catch(()=>{$('count').textContent='';$('results').innerHTML='<div class="empty">Concert data could not be loaded. Run this through GitHub Pages or a local web server.</div>'});
 </script></body></html>
