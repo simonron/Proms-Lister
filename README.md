@@ -22,3 +22,9 @@ supabase functions deploy proms-sync --no-verify-jwt
 6. Enter the same values on the phone and desktop.
 
 Ticket details and attached PDFs/photos synchronise automatically. The app still works offline.
+
+## Mobile page layout
+
+The application now opens on a compact mobile home screen. Browse Proms, My Tickets,
+Tonight's Prom, and Import & Transfer open as separate full-screen pages with a
+**← Start** button back to the home screen.
