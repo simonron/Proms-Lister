@@ -25,9 +25,6 @@ main{max-width:900px;margin:auto;padding:12px 14px 55px}.drop{border:2px dashed 
 .sticker-ticket{background:#fff0c9;color:#6e1f26}
 .sticker-red{background:#b3261e;color:white}
 .sticker-green{background:#2f7d42;color:white}
-
-.prom-number{display:inline-block;margin-bottom:5px;color:var(--maroon);font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
-.calendar-status{margin-top:10px;font-size:12px;color:var(--sage)}
 </style></head><body>
 <div id="homePage" class="app-page active">
   <div class="home-wrap">
@@ -41,8 +38,6 @@ main{max-width:900px;margin:auto;padding:12px 14px 55px}.drop{border:2px dashed 
       <button id="homeBrowse" class="home-button">Browse Proms<small>Search and view the full 2026 concert list</small></button>
       <button id="homeTickets" class="home-button">My Proms <span id="homeTicketCount"></span><small>Show Proms marked My Prom or with a ticket</small></button>
       <button id="homeImport" class="home-button">Import &amp; Transfer<small>Read PDFs and ticket photos; export or import a backup</small></button>
-      <button id="homeCalendar" class="home-button">Connect Mac Calendar<small>Create or select PromsCalendarSync.json in iCloud Drive</small></button>
-      <div id="calendarStatus" class="calendar-status">Calendar sync file not connected.</div>
     </nav>
     <div class="home-footer">Ticket files remain on this device unless transferred using a backup.</div>
   </div>
@@ -52,7 +47,7 @@ main{max-width:900px;margin:auto;padding:12px 14px 55px}.drop{border:2px dashed 
   <header class="page-head"><div class="page-head-inner">
     <div class="page-title-row"><button class="back-home" data-home>← Start</button><h1 id="listPageTitle" class="page-title">Browse Proms</h1></div>
     <div class="search"><span>⌕</span><input id="q" placeholder="Search titles, composers, performers, seats, notes…"></div>
-    <div class="filters"><label>From <input id="from" type="date"></label><label>To <input id="to" type="date"></label><button class="chip" id="today">Today</button><button class="chip" id="weekend">Weekend</button><button class="chip" id="all">All dates</button><button class="chip" id="ticketOnly">My Proms</button></div>
+    <div class="filters"><label>From <input id="from" type="date"></label><label>To <input id="to" type="date"></label><button class="chip" id="prevProm">−</button><button class="chip" id="todayProm">Today</button><button class="chip" id="nextProm">+</button><button class="chip" id="today">Today</button><button class="chip" id="weekend">Weekend</button><button class="chip" id="all">All dates</button><button class="chip" id="ticketOnly">My Proms</button></div>
     <div id="listModeNote" class="mode-note"></div>
   </div></header>
   <main class="list-main"><div id="tonightBanner" class="tonight-banner"></div><div id="count" class="count">Loading…</div><div id="results"></div></main>
@@ -74,63 +69,11 @@ main{max-width:900px;margin:auto;padding:12px 14px 55px}.drop{border:2px dashed 
 <div id="backdrop" class="backdrop"></div><div id="sheet" class="sheet"><button id="close" class="close">×</button><div id="detail"></div></div>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const STORAGE='promsTicketsV2', DB='PromsListerPDFs', STORE='pdfs';let concerts=[],selected=null,ticketOnly=false;const $=id=>document.getElementById(id);
+const STORAGE='promsTicketsV2', DB='PromsListerPDFs', STORE='pdfs';let concerts=[],selected=null,ticketOnly=false,currentPromIndex=-1;const $=id=>document.getElementById(id);
 const PROM_STATE={NONE:0,WANT:1,PRIORITY:2,TICKET:3,ATTENDED:4};
 const fmt=d=>new Date(d+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));const keyFor=c=>String(c.id||`${c.date}|${c.time}|${c.title}`);
 function loadTickets(){try{return JSON.parse(localStorage.getItem(STORAGE)||'{}')}catch{return {}}}function saveTickets(x){localStorage.setItem(STORAGE,JSON.stringify(x))}function ticketFor(c){return loadTickets()[keyFor(c)]||{}}
-function dbOpen(){return new Promise((res,rej)=>{const r=indexedDB.open(DB,2);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE);if(!db.objectStoreNames.contains('settings'))db.createObjectStore('settings')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
-async function settingPut(k,v){const db=await dbOpen();return new Promise((res,rej)=>{const tx=db.transaction('settings','readwrite');tx.objectStore('settings').put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}
-async function settingGet(k){const db=await dbOpen();return new Promise((res,rej)=>{const r=db.transaction('settings').objectStore('settings').get(k);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}async function pdfPut(k,b,n){const db=await dbOpen();return new Promise((res,rej)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put({blob:b,name:n},k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}async function pdfGet(k){const db=await dbOpen();return new Promise((res,rej)=>{const r=db.transaction(STORE).objectStore(STORE).get(k);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}async function pdfDelete(k){const db=await dbOpen();return new Promise((res,rej)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).delete(k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}
-
-function explicitPromNumber(c){
- const direct=c.promNumber??c.prom_number??c.prom??c.number??c.promNo??c.prom_no;
- if(direct!==undefined&&direct!==null&&String(direct).trim()!==''){
-   const m=String(direct).match(/\d+/);if(m)return Number(m[0]);
- }
- const source=[c.title,c.name,c.subtitle,c.programme].filter(Boolean).join(' ');
- const m=source.match(/\bProm\s*(?:No\.?\s*)?(\d{1,3})\b/i);
- return m?Number(m[1]):null;
-}
-function promNumber(c){return c._promNumber||explicitPromNumber(c)||''}
-function promLabel(c){const n=promNumber(c);return n!==''?`Prom ${n}`:'Prom'}
-let calendarSyncHandle=null;
-function setCalendarStatus(s){const el=$('calendarStatus');if(el)el.textContent=s}
-async function restoreCalendarSyncHandle(){
- try{
-  calendarSyncHandle=await settingGet('calendarSyncHandle');
-  if(calendarSyncHandle){
-   const p=await calendarSyncHandle.queryPermission({mode:'readwrite'});
-   setCalendarStatus(p==='granted'?'Mac Calendar sync connected.':'Mac Calendar file needs permission.');
-  }
- }catch(e){console.warn(e)}
-}
-async function connectCalendarSync(){
- if(!window.showSaveFilePicker){alert('Use Chrome on your Mac to connect the Calendar sync file.');return}
- try{
-  const h=await window.showSaveFilePicker({suggestedName:'PromsCalendarSync.json',types:[{description:'Proms Calendar Sync JSON',accept:{'application/json':['.json']}}]});
-  calendarSyncHandle=h;await settingPut('calendarSyncHandle',h);await writeCalendarSyncFile();
- }catch(e){if(e.name!=='AbortError')alert('Calendar connection failed: '+e.message)}
-}
-function calendarRecord(c,t){
- return {id:keyFor(c),promNumber:promNumber(c),title:c.title||'',date:c.date||'',time:c.time||'19:30',
- venue:c.venue||'Royal Albert Hall',city:c.city||'London',programme:c.programme||'',performers:c.performers||'',
- broadcast:c.broadcast||'',price:c.price||'',myProm:!!t.myProm,hasTicket:!!t.hasTicket,area:t.area||'',
- section:t.section||'',row:t.row||'',seat:t.seat||'',door:t.door||'',reference:t.reference||'',
- notes:t.notes||'',updatedAt:t.updatedAt||Date.now()};
-}
-async function writeCalendarSyncFile(){
- if(!calendarSyncHandle)return;
- try{
-  let p=await calendarSyncHandle.queryPermission({mode:'readwrite'});
-  if(p!=='granted')p=await calendarSyncHandle.requestPermission({mode:'readwrite'});
-  if(p!=='granted'){setCalendarStatus('Calendar file permission not granted.');return}
-  const saved=loadTickets(),records=concerts.map(c=>calendarRecord(c,saved[keyFor(c)]||{}));
-  const w=await calendarSyncHandle.createWritable();
-  await w.write(JSON.stringify({format:'proms-calendar-sync-v1',generatedAt:new Date().toISOString(),records},null,2));
-  await w.close();setCalendarStatus('Calendar file updated '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
- }catch(e){console.error(e);setCalendarStatus('Calendar file update failed.')}
-}
-
+function dbOpen(){return new Promise((res,rej)=>{const r=indexedDB.open(DB,1);r.onupgradeneeded=()=>r.result.createObjectStore(STORE);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}async function pdfPut(k,b,n){const db=await dbOpen();return new Promise((res,rej)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put({blob:b,name:n},k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}async function pdfGet(k){const db=await dbOpen();return new Promise((res,rej)=>{const r=db.transaction(STORE).objectStore(STORE).get(k);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}async function pdfDelete(k){const db=await dbOpen();return new Promise((res,rej)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).delete(k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}
 function wildcard(q){const x=q.replace(/[.+^${}()|[\]\\]/g,'\\$&').replace(/\*/g,'.*').replace(/\?/g,'.');try{return new RegExp(x,'i')}catch{return null}}
 function mimeForName(name){
 const n=String(name||'').toLowerCase();
@@ -164,8 +107,24 @@ function openList(mode='all'){
  $('ticketOnly').classList.toggle('active',ticketOnly);
  $('listPageTitle').textContent=ticketOnly?'My Proms':'Browse Proms';
  $('listModeNote').textContent=ticketOnly?'Proms marked My Prom or with a ticket are shown.':'All Royal Albert Hall Proms are shown.';
- showPage('listPage');render();
+ showSingleProm(concerts.findIndex(x=>x.date===today));
 }
+
+function showSingleProm(index){
+ if(index<0) index=0;
+ if(index>=concerts.length) index=concerts.length-1;
+ currentPromIndex=index;
+ const c=concerts[index];
+ $('from').value=c.date;
+ $('to').value=c.date;
+ $('listPageTitle').textContent=c.title;
+ $('listModeNote').textContent=`${c.time} · ${fmt(c.date)}`;
+ $('tonightBanner').classList.add('show');
+ $('tonightBanner').textContent=`${c.time} · ${c.title}`;
+ showPage('listPage');
+ render();
+}
+
 function openTonight(){
  const today=new Date().toISOString().slice(0,10);
  const c=concerts.find(x=>x.date===today);
@@ -175,7 +134,7 @@ function openTonight(){
  $('tonightBanner').classList.add('show');$('tonightBanner').textContent=`${c.time} · ${c.title}`;
  showPage('listPage');render();
 }
-function render(){const q=$('q').value.trim(),re=q?wildcard(q):null,from=$('from').value,to=$('to').value,all=loadTickets();const list=concerts.filter(c=>{const t=all[keyFor(c)]||{};const hay=[c.title,c.programme,c.performers,c.venue,c.city,t.area,t.section,t.row,t.seat,t.door,t.reference,t.notes].join(' ');return(!from||c.date>=from)&&(!to||c.date<=to)&&(!re||re.test(hay))&&(!ticketOnly||t.myProm||t.hasTicket)});$('count').textContent=`${list.length} Royal Albert Hall concert${list.length===1?'':'s'}`;$('results').innerHTML=list.length?'':'<div class="empty">No matching concerts.</div>';let last='';for(const c of list){if(c.date!==last){const d=document.createElement('div');d.className='day';d.textContent=fmt(c.date);$('results').appendChild(d);last=c.date}const t=all[keyFor(c)]||{},att=t.hasTicket&&new Date(c.date+'T23:59:59')<new Date(),where=[t.section||t.area,t.row&&`Row ${t.row}`,t.seat&&`Seat ${t.seat}`].filter(Boolean).join(' · '),seatText=String(t.section||t.area||'').toLowerCase(),seatSticker=seatText.includes('standing')||seatText.includes('arena')?'sticker-green':seatText.includes('stalls')?'sticker-red':'';const el=document.createElement('article');el.className='card'+(t.hasTicket?' ticket':(t.myProm?' my-prom-card':''));const stickers=[t.myProm?'<span class="sticker sticker-my-prom">♡ My Prom</span>':'',t.hasTicket?`<span class="sticker sticker-ticket">${att?'✓ Attended':'🎟 Ticket'}</span>`:'',where?`<span class="sticker ${seatSticker}">${esc(where)}</span>`:'',t.door?`<span class="sticker">Door ${esc(t.door)}</span>`:'',t.pdfName?'<span class="sticker">Ticket attached</span>':''].filter(Boolean).join('');el.innerHTML=`<div class="prom-number">${esc(promLabel(c))}</div><div class="top"><div class="title">${esc(c.title)}</div><div class="time">${esc(c.time)}</div></div><div class="venue">${esc(c.venue)}</div>${c.programme?`<div class="programme">${esc(c.programme)}</div>`:''}${stickers?`<div class="status-stickers">${stickers}</div>`:''}${t.hasTicket?`<button class="flag" title="Open Ticket">${att?'✅':'🎟'}</button>`:''}`;el.onclick=e=>{if(e.target.classList.contains('flag')){e.stopPropagation();openPdf(c)}else openDetail(c)};$('results').appendChild(el)}updateHome()}
+function render(){const q=$('q').value.trim(),re=q?wildcard(q):null,from=$('from').value,to=$('to').value,all=loadTickets();const list=concerts.filter(c=>{const t=all[keyFor(c)]||{};const hay=[c.title,c.programme,c.performers,c.venue,c.city,t.area,t.section,t.row,t.seat,t.door,t.reference,t.notes].join(' ');return(!from||c.date>=from)&&(!to||c.date<=to)&&(!re||re.test(hay))&&(!ticketOnly||t.myProm||t.hasTicket)});$('count').textContent=`${list.length} Royal Albert Hall concert${list.length===1?'':'s'}`;$('results').innerHTML=list.length?'':'<div class="empty">No matching concerts.</div>';let last='';for(const c of list){if(c.date!==last){const d=document.createElement('div');d.className='day';d.textContent=fmt(c.date);$('results').appendChild(d);last=c.date}const t=all[keyFor(c)]||{},att=t.hasTicket&&new Date(c.date+'T23:59:59')<new Date(),where=[t.section||t.area,t.row&&`Row ${t.row}`,t.seat&&`Seat ${t.seat}`].filter(Boolean).join(' · '),seatText=String(t.section||t.area||'').toLowerCase(),seatSticker=seatText.includes('standing')||seatText.includes('arena')?'sticker-green':seatText.includes('stalls')?'sticker-red':'';const el=document.createElement('article');el.className='card'+(t.hasTicket?' ticket':(t.myProm?' my-prom-card':''));const stickers=[t.myProm?'<span class="sticker sticker-my-prom">♡ My Prom</span>':'',t.hasTicket?`<span class="sticker sticker-ticket">${att?'✓ Attended':'🎟 Ticket'}</span>`:'',where?`<span class="sticker ${seatSticker}">${esc(where)}</span>`:'',t.door?`<span class="sticker">Door ${esc(t.door)}</span>`:'',t.pdfName?'<span class="sticker">Ticket attached</span>':''].filter(Boolean).join('');el.innerHTML=`<div class="top"><div class="title">${esc(c.title)}</div><div class="time">${esc(c.time)}</div></div><div class="venue">${esc(c.venue)}</div>${c.programme?`<div class="programme">${esc(c.programme)}</div>`:''}${stickers?`<div class="status-stickers">${stickers}</div>`:''}${t.hasTicket?`<button class="flag" title="Open Ticket">${att?'✅':'🎟'}</button>`:''}`;el.onclick=e=>{if(e.target.classList.contains('flag')){e.stopPropagation();openPdf(c)}else openDetail(c)};$('results').appendChild(el)}updateHome()}
 	async function openPdf(c){
 const rec=await pdfGet(keyFor(c));
 if(!rec){
@@ -188,8 +147,8 @@ const u=URL.createObjectURL(blob);
 window.open(u,'_blank');
 setTimeout(()=>URL.revokeObjectURL(u),60000);
 }
-function openDetail(c){selected=c;const t=ticketFor(c);$('detail').innerHTML=`<div class="prom-number">${esc(promLabel(c))}</div><div style="font-size:12px;color:var(--sage);text-transform:uppercase">${fmt(c.date)} · ${esc(c.time)}</div><h2>${esc(c.title)}</h2><div class="meta"><div><b>Venue</b>${esc(c.venue)}</div>${c.price?`<div><b>Price</b>${esc(c.price)}</div>`:''}</div>${c.programme?`<div class="section"><h3>Programme</h3><p>${esc(c.programme)}</p></div>`:''}${c.performers?`<div class="section"><h3>Performers</h3><p>${esc(c.performers)}</p></div>`:''}${c.broadcast?`<div class="section"><h3>Broadcast</h3><p>${esc(c.broadcast)}</p></div>`:''}<div class="ticketbox"><div class="grid"><label class="check"><input id="myProm" type="checkbox" ${t.myProm?'checked':''}> My Prom</label><label class="check"><input id="hasTicket" type="checkbox" ${t.hasTicket?'checked':''}> I have a ticket</label></div><div class="grid"><label class="field"><span>Area</span><input id="area" value="${esc(t.area||'')}"></label><label class="field"><span>Section / box</span><input id="section" value="${esc(t.section||'')}"></label><label class="field"><span>Row</span><input id="row" value="${esc(t.row||'')}"></label><label class="field"><span>Seat</span><input id="seat" value="${esc(t.seat||'')}"></label><label class="field"><span>Door</span><input id="door" value="${esc(t.door||'')}"></label><label class="field"><span>Reference</span><input id="reference" value="${esc(t.reference||'')}"></label></div><label class="field"><span>Notes</span><textarea id="notes">${esc(t.notes||'')}</textarea></label><div class="actions"><button class="btn quick" data-note="Try standing">Try standing</button><button class="btn quick" data-note="Go early">Go early</button><button class="btn primary" id="saveTicket">Save ticket</button><button class="btn" id="attachPdf">Attach Ticket</button><button class="btn" id="openPdf">Open Ticket</button><button class="btn danger" id="removeTicket">Remove ticket</button></div><div class="actions"><a class="btn" target="_blank" href="https://seatplan.com/london/royal-albert-hall-venue/seating-plan/">SeatPlan</a><a class="btn" target="_blank" href="https://www.royalalberthall.com/plan-your-visit-essential-safety-information/venue-and-seating-plan/">RAH seating plan</a><button class="btn" id="copySeat">Copy seat details</button></div><div class="syncnote">Use Export backup on one device, then Import backup on the other. The ZIP includes ticket details, notes and attached ticket files.</div></div>`;document.querySelectorAll('.quick').forEach(b=>b.onclick=()=>{const n=$('notes');n.value=(n.value.trim()?n.value.trim()+'\n':'')+b.dataset.note});$('saveTicket').onclick=saveEditor;$('attachPdf').onclick=()=>{window.attachTarget=c;$('pdfPick').click()};$('openPdf').onclick=()=>openPdf(c);$('removeTicket').onclick=async()=>{const all=loadTickets();delete all[keyFor(c)];saveTickets(all);await pdfDelete(keyFor(c));closeSheet();render();writeCalendarSyncFile()};$('copySeat').onclick=()=>navigator.clipboard.writeText([c.title,t.section||t.area,t.row&&'Row '+t.row,t.seat&&'Seat '+t.seat,t.door&&'Door '+t.door].filter(Boolean).join('\n'));$('backdrop').classList.add('open');$('sheet').classList.add('open')}
-function saveEditor(){if(!selected)return;const all=loadTickets(),k=keyFor(selected),old=all[k]||{};const t={...old,myProm:$('myProm').checked,hasTicket:$('hasTicket').checked,area:$('area').value.trim(),section:$('section').value.trim(),row:$('row').value.trim(),seat:$('seat').value.trim(),door:$('door').value.trim(),reference:$('reference').value.trim(),notes:$('notes').value.trim(),updatedAt:Date.now()};if(!t.myProm&&!t.hasTicket&&!t.area&&!t.section&&!t.row&&!t.seat&&!t.door&&!t.reference&&!t.notes&&!t.pdfName)delete all[k];else all[k]=t;saveTickets(all);render();openDetail(selected);writeCalendarSyncFile()}
+function openDetail(c){selected=c;const t=ticketFor(c);$('detail').innerHTML=`<div style="font-size:12px;color:var(--sage);text-transform:uppercase">${fmt(c.date)} · ${esc(c.time)}</div><h2>${esc(c.title)}</h2><div class="meta"><div><b>Venue</b>${esc(c.venue)}</div>${c.price?`<div><b>Price</b>${esc(c.price)}</div>`:''}</div>${c.programme?`<div class="section"><h3>Programme</h3><p>${esc(c.programme)}</p></div>`:''}${c.performers?`<div class="section"><h3>Performers</h3><p>${esc(c.performers)}</p></div>`:''}${c.broadcast?`<div class="section"><h3>Broadcast</h3><p>${esc(c.broadcast)}</p></div>`:''}<div class="ticketbox"><div class="grid"><label class="check"><input id="myProm" type="checkbox" ${t.myProm?'checked':''}> My Prom</label><label class="check"><input id="hasTicket" type="checkbox" ${t.hasTicket?'checked':''}> I have a ticket</label></div><div class="grid"><label class="field"><span>Area</span><input id="area" value="${esc(t.area||'')}"></label><label class="field"><span>Section / box</span><input id="section" value="${esc(t.section||'')}"></label><label class="field"><span>Row</span><input id="row" value="${esc(t.row||'')}"></label><label class="field"><span>Seat</span><input id="seat" value="${esc(t.seat||'')}"></label><label class="field"><span>Door</span><input id="door" value="${esc(t.door||'')}"></label><label class="field"><span>Reference</span><input id="reference" value="${esc(t.reference||'')}"></label></div><label class="field"><span>Notes</span><textarea id="notes">${esc(t.notes||'')}</textarea></label><div class="actions"><button class="btn quick" data-note="Try standing">Try standing</button><button class="btn quick" data-note="Go early">Go early</button><button class="btn primary" id="saveTicket">Save ticket</button><button class="btn" id="attachPdf">Attach Ticket</button><button class="btn" id="openPdf">Open Ticket</button><button class="btn danger" id="removeTicket">Remove ticket</button></div><div class="actions"><a class="btn" target="_blank" href="https://seatplan.com/london/royal-albert-hall-venue/seating-plan/">SeatPlan</a><a class="btn" target="_blank" href="https://www.royalalberthall.com/plan-your-visit-essential-safety-information/venue-and-seating-plan/">RAH seating plan</a><button class="btn" id="copySeat">Copy seat details</button></div><div class="syncnote">Use Export backup on one device, then Import backup on the other. The ZIP includes ticket details, notes and attached ticket files.</div></div>`;document.querySelectorAll('.quick').forEach(b=>b.onclick=()=>{const n=$('notes');n.value=(n.value.trim()?n.value.trim()+'\n':'')+b.dataset.note});$('saveTicket').onclick=saveEditor;$('attachPdf').onclick=()=>{window.attachTarget=c;$('pdfPick').click()};$('openPdf').onclick=()=>openPdf(c);$('removeTicket').onclick=async()=>{const all=loadTickets();delete all[keyFor(c)];saveTickets(all);await pdfDelete(keyFor(c));closeSheet();render()};$('copySeat').onclick=()=>navigator.clipboard.writeText([c.title,t.section||t.area,t.row&&'Row '+t.row,t.seat&&'Seat '+t.seat,t.door&&'Door '+t.door].filter(Boolean).join('\n'));$('backdrop').classList.add('open');$('sheet').classList.add('open')}
+function saveEditor(){if(!selected)return;const all=loadTickets(),k=keyFor(selected),old=all[k]||{};const t={...old,myProm:$('myProm').checked,hasTicket:$('hasTicket').checked,area:$('area').value.trim(),section:$('section').value.trim(),row:$('row').value.trim(),seat:$('seat').value.trim(),door:$('door').value.trim(),reference:$('reference').value.trim(),notes:$('notes').value.trim(),updatedAt:Date.now()};if(!t.myProm&&!t.hasTicket&&!t.area&&!t.section&&!t.row&&!t.seat&&!t.door&&!t.reference&&!t.notes&&!t.pdfName)delete all[k];else all[k]=t;saveTickets(all);render();openDetail(selected)}
 function closeSheet(){$('backdrop').classList.remove('open');$('sheet').classList.remove('open')}
 async function pdfPages(file){
 const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
@@ -235,7 +194,7 @@ window.attachTarget=null;
 }
 render();
 $('importStatus').textContent=`Imported ${ok} ticket file${ok===1?'':'s'}${fail.length?`; could not match: ${fail.join(', ')}`:''}`;
-if(selected)openDetail(selected);writeCalendarSyncFile();
+if(selected)openDetail(selected);
 }
 async function exportBackup(){const zip=new JSZip(),all=loadTickets(),manifest={format:'proms-lister-backup-v1',created:new Date().toISOString(),tickets:all};zip.file('backup.json',JSON.stringify(manifest,null,2));for(const [k,t] of Object.entries(all)){if(t.pdfName){const rec=await pdfGet(k);if(rec)zip.file('pdfs/'+encodeURIComponent(k)+'__'+rec.name,rec.blob)}}const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`PromsListerBackup_${new Date().toISOString().slice(0,10)}.zip`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),30000)}
 	async function importBackup(file){
@@ -267,14 +226,33 @@ await Promise.all(jobs);
 }
 
 render();
-$('importStatus').textContent='Backup imported. Ticket flags, notes and attached ticket files are now available on this device.';writeCalendarSyncFile();
+$('importStatus').textContent='Backup imported. Ticket flags, notes and attached ticket files are now available on this device.';
 }
 
 document.querySelectorAll('[data-home]').forEach(b=>b.onclick=()=>showPage('homePage'));
 $('homeBrowse').onclick=()=>openList('all');
 $('homeTickets').onclick=()=>openList('tickets');
 $('homeImport').onclick=()=>showPage('importPage');
-$('homeTonight').onclick=openTonight;$('homeCalendar').onclick=connectCalendarSync;
+$('homeTonight').onclick=openTonight;
+$('prevProm').onclick=()=>{if(currentPromIndex>0)showSingleProm(currentPromIndex-1);};
+$('nextProm').onclick=()=>{if(currentPromIndex<concerts.length-1)showSingleProm(currentPromIndex+1);};
+$('todayProm').onclick=()=>{const d=new Date().toISOString().slice(0,10);const i=concerts.findIndex(c=>c.date===d);if(i>=0)showSingleProm(i);};
 $('backdrop').onclick=closeSheet;$('close').onclick=closeSheet;$('q').oninput=render;$('from').onchange=render;$('to').onchange=render;$('all').onclick=()=>{$('from').value='';$('to').value='';$('tonightBanner').classList.remove('show');render()};$('today').onclick=()=>{const d=new Date().toISOString().slice(0,10);$('from').value=d;$('to').value=d;render()};$('weekend').onclick=()=>{const n=new Date(),off=(6-n.getDay()+7)%7,s=new Date(n);s.setDate(n.getDate()+off);const u=new Date(s);u.setDate(s.getDate()+1);$('from').value=s.toISOString().slice(0,10);$('to').value=u.toISOString().slice(0,10);render()};$('ticketOnly').onclick=()=>{ticketOnly=!ticketOnly;$('ticketOnly').classList.toggle('active',ticketOnly);$('listPageTitle').textContent=ticketOnly?'My Proms':'Browse Proms';$('listModeNote').textContent=ticketOnly?'Proms marked My Prom or with a ticket are shown.':'All Royal Albert Hall Proms are shown.';render()};$('choosePdf').onclick=()=>{window.attachTarget=null;$('pdfPick').click()};$('pdfPick').onchange=async e=>{await importPdfs([...e.target.files]);e.target.value=''};$('exportBackup').onclick=exportBackup;$('importBackup').onclick=()=>$('backupPick').click();$('backupPick').onchange=async e=>{try{if(e.target.files[0])await importBackup(e.target.files[0])}catch(err){alert('Backup import failed: '+err.message)}finally{e.target.value=''}};const drop=$('drop');['dragenter','dragover'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.add('drag')}));['dragleave','drop'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.remove('drag')}));drop.addEventListener('drop',e=>importPdfs([...e.dataTransfer.files].filter(f=>f.type==='application/pdf'||f.type.startsWith('image/')||f.name.toLowerCase().endsWith('.pdf'))));window.addEventListener('storage',render);window.addEventListener('focus',render);
-fetch('data.json').then(r=>r.json()).then(d=>{const numbered=d.map((c,i)=>({...c,_promNumber:explicitPromNumber(c)||(i+1)}));concerts=numbered.filter(c=>/royal albert hall/i.test(c.venue||''));render();updateHome();restoreCalendarSyncHandle().then(()=>writeCalendarSyncFile());showPage('homePage',{remember:false})}).catch(()=>{$('count').textContent='';$('results').innerHTML='<div class="empty">Concert data could not be loaded. Run this through GitHub Pages or a local web server.</div>'});
+fetch('data.json').then(r=>r.json()).then(d=>{concerts=d.filter(c=>/royal albert hall/i.test(c.venue||''));render();updateHome();showPage('homePage',{remember:false})}).catch(()=>{$('count').textContent='';$('results').innerHTML='<div class="empty">Concert data could not be loaded. Run this through GitHub Pages or a local web server.</div>'});
 </script></body></html>
+<script>
+function setPromState(concert,value){
+    const all=loadTickets();
+    const k=keyFor(concert);
+    all[k]={
+        ...(all[k]||{}),
+        promState:value,
+        updatedAt:Date.now()
+    };
+    saveTickets(all);
+    if(typeof render==='function') render();
+    if(typeof syncCSV==='function') syncCSV();
+}
+</script>
+
+<!-- render(): if(attendanceFilter && ((t.promState||0)!==attendanceFilter)) return false; -->
