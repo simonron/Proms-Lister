@@ -47,7 +47,7 @@ main{max-width:900px;margin:auto;padding:12px 14px 55px}.drop{border:2px dashed 
   <header class="page-head"><div class="page-head-inner">
     <div class="page-title-row"><button class="back-home" data-home>← Start</button><h1 id="listPageTitle" class="page-title">Browse Proms</h1></div>
     <div class="search"><span>⌕</span><input id="q" placeholder="Search titles, composers, performers, seats, notes…"></div>
-    <div class="filters"><label>From <input id="from" type="date"></label><label>To <input id="to" type="date"></label><button class="chip" id="prevProm">−</button><button class="chip" id="todayProm">Today</button><button class="chip" id="nextProm">+</button><button class="chip" id="today">Today</button><button class="chip" id="weekend">Weekend</button><button class="chip" id="all">All dates</button><button class="chip" id="ticketOnly">My Proms</button></div>
+    <div class="filters"><label>From <input id="from" type="date"></label><label>To <input id="to" type="date"></label><button class="chip" id="today">Today</button><button class="chip" id="weekend">Weekend</button><button class="chip" id="all">All dates</button><button class="chip" id="ticketOnly">My Proms</button></div>
     <div id="listModeNote" class="mode-note"></div>
   </div></header>
   <main class="list-main"><div id="tonightBanner" class="tonight-banner"></div><div id="count" class="count">Loading…</div><div id="results"></div></main>
@@ -69,7 +69,7 @@ main{max-width:900px;margin:auto;padding:12px 14px 55px}.drop{border:2px dashed 
 <div id="backdrop" class="backdrop"></div><div id="sheet" class="sheet"><button id="close" class="close">×</button><div id="detail"></div></div>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const STORAGE='promsTicketsV2', DB='PromsListerPDFs', STORE='pdfs';let concerts=[],selected=null,ticketOnly=false,currentPromIndex=-1;const $=id=>document.getElementById(id);
+const STORAGE='promsTicketsV2', DB='PromsListerPDFs', STORE='pdfs';let concerts=[],selected=null,ticketOnly=false;const $=id=>document.getElementById(id);
 const PROM_STATE={NONE:0,WANT:1,PRIORITY:2,TICKET:3,ATTENDED:4};
 const fmt=d=>new Date(d+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));const keyFor=c=>String(c.id||`${c.date}|${c.time}|${c.title}`);
 function loadTickets(){try{return JSON.parse(localStorage.getItem(STORAGE)||'{}')}catch{return {}}}function saveTickets(x){localStorage.setItem(STORAGE,JSON.stringify(x))}function ticketFor(c){return loadTickets()[keyFor(c)]||{}}
@@ -107,24 +107,8 @@ function openList(mode='all'){
  $('ticketOnly').classList.toggle('active',ticketOnly);
  $('listPageTitle').textContent=ticketOnly?'My Proms':'Browse Proms';
  $('listModeNote').textContent=ticketOnly?'Proms marked My Prom or with a ticket are shown.':'All Royal Albert Hall Proms are shown.';
- showSingleProm(concerts.findIndex(x=>x.date===today));
+ showPage('listPage');render();
 }
-
-function showSingleProm(index){
- if(index<0) index=0;
- if(index>=concerts.length) index=concerts.length-1;
- currentPromIndex=index;
- const c=concerts[index];
- $('from').value=c.date;
- $('to').value=c.date;
- $('listPageTitle').textContent=c.title;
- $('listModeNote').textContent=`${c.time} · ${fmt(c.date)}`;
- $('tonightBanner').classList.add('show');
- $('tonightBanner').textContent=`${c.time} · ${c.title}`;
- showPage('listPage');
- render();
-}
-
 function openTonight(){
  const today=new Date().toISOString().slice(0,10);
  const c=concerts.find(x=>x.date===today);
@@ -234,9 +218,6 @@ $('homeBrowse').onclick=()=>openList('all');
 $('homeTickets').onclick=()=>openList('tickets');
 $('homeImport').onclick=()=>showPage('importPage');
 $('homeTonight').onclick=openTonight;
-$('prevProm').onclick=()=>{if(currentPromIndex>0)showSingleProm(currentPromIndex-1);};
-$('nextProm').onclick=()=>{if(currentPromIndex<concerts.length-1)showSingleProm(currentPromIndex+1);};
-$('todayProm').onclick=()=>{const d=new Date().toISOString().slice(0,10);const i=concerts.findIndex(c=>c.date===d);if(i>=0)showSingleProm(i);};
 $('backdrop').onclick=closeSheet;$('close').onclick=closeSheet;$('q').oninput=render;$('from').onchange=render;$('to').onchange=render;$('all').onclick=()=>{$('from').value='';$('to').value='';$('tonightBanner').classList.remove('show');render()};$('today').onclick=()=>{const d=new Date().toISOString().slice(0,10);$('from').value=d;$('to').value=d;render()};$('weekend').onclick=()=>{const n=new Date(),off=(6-n.getDay()+7)%7,s=new Date(n);s.setDate(n.getDate()+off);const u=new Date(s);u.setDate(s.getDate()+1);$('from').value=s.toISOString().slice(0,10);$('to').value=u.toISOString().slice(0,10);render()};$('ticketOnly').onclick=()=>{ticketOnly=!ticketOnly;$('ticketOnly').classList.toggle('active',ticketOnly);$('listPageTitle').textContent=ticketOnly?'My Proms':'Browse Proms';$('listModeNote').textContent=ticketOnly?'Proms marked My Prom or with a ticket are shown.':'All Royal Albert Hall Proms are shown.';render()};$('choosePdf').onclick=()=>{window.attachTarget=null;$('pdfPick').click()};$('pdfPick').onchange=async e=>{await importPdfs([...e.target.files]);e.target.value=''};$('exportBackup').onclick=exportBackup;$('importBackup').onclick=()=>$('backupPick').click();$('backupPick').onchange=async e=>{try{if(e.target.files[0])await importBackup(e.target.files[0])}catch(err){alert('Backup import failed: '+err.message)}finally{e.target.value=''}};const drop=$('drop');['dragenter','dragover'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.add('drag')}));['dragleave','drop'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.remove('drag')}));drop.addEventListener('drop',e=>importPdfs([...e.dataTransfer.files].filter(f=>f.type==='application/pdf'||f.type.startsWith('image/')||f.name.toLowerCase().endsWith('.pdf'))));window.addEventListener('storage',render);window.addEventListener('focus',render);
 fetch('data.json').then(r=>r.json()).then(d=>{concerts=d.filter(c=>/royal albert hall/i.test(c.venue||''));render();updateHome();showPage('homePage',{remember:false})}).catch(()=>{$('count').textContent='';$('results').innerHTML='<div class="empty">Concert data could not be loaded. Run this through GitHub Pages or a local web server.</div>'});
 </script></body></html>
