@@ -3,65 +3,24 @@
 <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:2rem">Loading Proms Lister…</div>
 <script>
 (async()=>{
-  const source=await fetch('./Proms-Lister-Calendar/index.html?vr=2.1',{cache:'no-store'});
-  if(!source.ok) throw new Error('Could not load Proms Lister source: '+source.status);
-  let html=await source.text();
-  html=html.replace('<head>','<head><base href="/Proms-Lister/">');
-  const patch=`<script>
-(function(){
-  async function refreshLoadedTicket(c){
-    const k=keyFor(c), rec=await pdfGet(k);
-    if(!rec){ alert('No loaded ticket file is available for this Prom. Attach the ticket first.'); return; }
-    const btn=document.getElementById('refreshTicket');
-    if(btn){ btn.disabled=true; btn.textContent='Refreshing…'; }
-    try{
-      const type=rec.blob.type||mimeForName(rec.name)||'application/octet-stream';
-      const isPdf=type==='application/pdf'||String(rec.name||'').toLowerCase().endsWith('.pdf');
-      const pages=isPdf ? await pdfPages(rec.blob) : [await imageText(rec.blob)];
-      const best={};
-      for(const page of pages){
-        const parsed=parseTicket(page);
-        for(const f of ['door','section','row','seat','reference']) if(parsed[f]&&!best[f]) best[f]=parsed[f];
-        if(parsed.notes&&!best.notes) best.notes=parsed.notes;
-      }
-      const all=loadTickets(), old=all[k]||{};
-      const refreshed={...old,hasTicket:true,pdfName:old.pdfName||rec.name,fileType:old.fileType||type,updatedAt:Date.now()};
-      for(const f of ['door','section','row','seat','reference']) if(best[f]) refreshed[f]=best[f];
-      if(best.notes&&!String(refreshed.notes||'').includes(best.notes)) refreshed.notes=[refreshed.notes,best.notes].filter(Boolean).join('\n');
-      all[k]=refreshed;
-      saveTickets(all);
-      render();
-      openDetail(c);
-      await writeCalendarSyncFile();
-      if(!['door','section','row','seat'].some(f=>best[f])) alert('Ticket refreshed, but no Door / Section / Row / Seat details could be read from the stored ticket.');
-    }catch(err){
-      console.error(err);
-      alert('Ticket refresh failed: '+(err&&err.message?err.message:err));
-      if(btn){ btn.disabled=false; btn.textContent='Refresh Ticket Details'; }
-    }
-  }
-  const originalOpenDetail=openDetail;
-  openDetail=function(c){
-    originalOpenDetail(c);
-    const actions=document.querySelector('#detail .ticketbox .actions');
-    if(!actions) return;
-    if(!document.getElementById('refreshTicket')){
-      const b=document.createElement('button');
-      b.className='btn'; b.id='refreshTicket'; b.textContent='Refresh Ticket Details';
-      b.onclick=()=>refreshLoadedTicket(c);
-      const open=document.getElementById('openPdf');
-      actions.insertBefore(b,open||null);
-    }
-    if(!document.getElementById('closeTicketView')){
-      const b=document.createElement('button');
-      b.className='btn'; b.id='closeTicketView'; b.textContent='Close'; b.onclick=closeSheet;
-      actions.appendChild(b);
-    }
-  };
-})();
-<\/script>`;
-  html=html.replace('</body>',patch+'</body>');
-  document.open(); document.write(html); document.close();
-})().catch(err=>{document.body.innerHTML='<pre style="white-space:pre-wrap;padding:1rem;color:#9c2f2f">Proms Lister failed to load: '+String(err&&err.message?err.message:err)+'</pre>';});
-</script>
-</body></html>
+ const r=await fetch('./Proms-Lister-Calendar/index.html?vr=2.2',{cache:'no-store'});if(!r.ok)throw Error('Could not load Proms Lister source: '+r.status);let h=await r.text();
+ h=h.replace('<head>','<head><base href="/Proms-Lister/">');
+ const old='<button class="btn" id="attachPdf">Attach Ticket</button><button class="btn" id="openPdf">Open Ticket</button><button class="btn danger" id="removeTicket">Remove ticket</button>';
+ const neu='<button class="btn" id="attachPdf">Attach Ticket</button><button class="btn" id="refreshTicket">Refresh Ticket Details</button><button class="btn" id="openPdf">Open Ticket</button><button class="btn danger" id="removeTicket">Remove ticket</button><button class="btn" id="closeTicketView">Close</button>';
+ if(!h.includes(old))throw Error('Ticket action controls not found in source');h=h.replace(old,neu);
+ const bind="$('attachPdf').onclick=()=>{window.attachTarget=c;$('pdfPick').click()};$('openPdf').onclick=()=>openPdf(c);";
+ const bind2="$('attachPdf').onclick=()=>{window.attachTarget=c;$('pdfPick').click()};$('refreshTicket').onclick=()=>refreshTicketDetails(c);$('openPdf').onclick=()=>openPdf(c);$('closeTicketView').onclick=closeSheet;";
+ if(!h.includes(bind))throw Error('Ticket button bindings not found in source');h=h.replace(bind,bind2);
+ const anchor='function closeSheet(){$(\'backdrop\').classList.remove(\'open\');$(\'sheet\').classList.remove(\'open\')}';
+ const fn=`async function refreshTicketDetails(c){
+ const k=keyFor(c),rec=await pdfGet(k);if(!rec){alert('No loaded ticket file is available for this Prom. Attach the ticket first.');return}
+ const b=$('refreshTicket');if(b){b.disabled=true;b.textContent='Refreshing…'}
+ try{const type=rec.blob.type||mimeForName(rec.name)||'application/octet-stream',isPdf=type==='application/pdf'||String(rec.name||'').toLowerCase().endsWith('.pdf');const pages=isPdf?await pdfPages(rec.blob):[await imageText(rec.blob)],best={};
+ for(const page of pages){const p=parseTicket(page);for(const f of ['door','section','row','seat','reference'])if(p[f]&&!best[f])best[f]=p[f];if(p.notes&&!best.notes)best.notes=p.notes}
+ const all=loadTickets(),old=all[k]||{},t={...old,hasTicket:true,pdfName:old.pdfName||rec.name,fileType:old.fileType||type,updatedAt:Date.now()};for(const f of ['door','section','row','seat','reference'])if(best[f])t[f]=best[f];if(best.notes&&!String(t.notes||'').includes(best.notes))t.notes=[t.notes,best.notes].filter(Boolean).join('\\n');all[k]=t;saveTickets(all);render();openDetail(c);await writeCalendarSyncFile();if(!['door','section','row','seat'].some(f=>best[f]))alert('Ticket refreshed, but no Door / Section / Row / Seat details could be read from the stored ticket.')
+ }catch(e){console.error(e);alert('Ticket refresh failed: '+(e&&e.message?e.message:e));if(b){b.disabled=false;b.textContent='Refresh Ticket Details'}}}
+`;
+ if(!h.includes(anchor))throw Error('Close-sheet anchor not found in source');h=h.replace(anchor,fn+anchor);
+ document.open();document.write(h);document.close();
+})().catch(e=>{document.body.innerHTML='<pre style="white-space:pre-wrap;padding:1rem;color:#9c2f2f">Proms Lister failed to load: '+String(e&&e.message?e.message:e)+'</pre>'});
+</script></body></html>
