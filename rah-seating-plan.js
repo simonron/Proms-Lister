@@ -27,3 +27,42 @@ function install(ticket){if(ticket&&Object.keys(ticket).length)activeTicket=tick
 function setTicket(t){if(t&&Object.keys(t).length)activeTicket=t;renderMarker()}
 window.RAHSeatMap={mapRevision:MAP_REV,install,setTicket,locate,nearest,startCorrection,renderMarker,lookup:LOOKUP,currentTicket};
 })();
+
+/* iPhone/Safari ticket viewer fix. Kept outside the Lister HTML so the working UI is untouched. */
+(function(){
+async function iPhoneSafeOpenPdf(c){
+  const viewer=window.open('about:blank','_blank');
+  if(viewer){
+    try{
+      viewer.document.open();
+      viewer.document.write('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ticket</title><body style="font-family:-apple-system,system-ui;padding:24px">Loading ticket…</body>');
+      viewer.document.close();
+    }catch(e){}
+  }
+  try{
+    const k=keyFor(c),rec=await pdfGet(k);
+    if(!rec){
+      if(viewer)try{viewer.close()}catch(e){}
+      alert('Ticket details are recorded, but the ticket file is not stored on this iPhone. Import the backup ZIP or attach the ticket file on this device.');
+      return;
+    }
+    const type=rec.blob.type||mimeForName(rec.name)||'application/octet-stream';
+    const blob=new Blob([rec.blob],{type});
+    const u=URL.createObjectURL(blob);
+    let page=0;
+    try{
+      const t=typeof ticketFor==='function'?ticketFor(c):{};
+      page=Number(t&&t.ticketPage||0);
+    }catch(e){}
+    const target=(type==='application/pdf'||String(rec.name||'').toLowerCase().endsWith('.pdf'))&&page?u+'#page='+page+'&zoom=page-width':u;
+    if(viewer) viewer.location.replace(target);
+    else window.location.href=target;
+    setTimeout(()=>URL.revokeObjectURL(u),300000);
+  }catch(err){
+    if(viewer){try{viewer.document.body.innerHTML='<p style="font-family:-apple-system,system-ui;padding:24px">Ticket could not be opened.</p>'}catch(e){}}
+    alert('Ticket could not be opened: '+(err&&err.message?err.message:err));
+  }
+}
+/* The original openPdf is a global function declaration; assignment replaces it without touching HTML. */
+try{openPdf=iPhoneSafeOpenPdf}catch(e){window.openPdf=iPhoneSafeOpenPdf}
+})();
