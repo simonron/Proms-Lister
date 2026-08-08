@@ -1,127 +1,24 @@
-/* Royal Albert Hall interactive seating-plan + Safari calendar support.
-   Coordinates are percentages of rah-seating-plan.jpg.
-   User corrections are stored locally and override/interpolate the estimated map. */
+/* Royal Albert Hall interactive seating-plan support.
+   Hall-wide interpolated map with lightweight user corrections.
+   Coordinates are percentages of rah-seating-plan.jpg. */
 (function(){
 'use strict';
-
 const CORR_KEY='rahSeatCorrectionsV1';
-const BASE={
-  'O|1|114':{x:61.8,y:36.8,kind:'mapped'}, 'O|1|112':{x:62.0,y:38.3,kind:'mapped'},
-  'O|1|110':{x:62.2,y:39.8,kind:'mapped'}, 'O|1|108':{x:62.5,y:41.3,kind:'mapped'},
-  'O|1|106':{x:62.8,y:43.0,kind:'mapped'}, 'O|1|105':{x:63.0,y:44.6,kind:'mapped'},
-  'O|1|104':{x:63.1,y:45.3,kind:'mapped'}, 'O|1|103':{x:63.2,y:46.1,kind:'mapped'},
-  'O|1|102':{x:63.3,y:46.9,kind:'mapped'}, 'O|1|101':{x:63.4,y:47.7,kind:'mapped'},
-  'O|1|100':{x:63.5,y:48.5,kind:'mapped'}, 'O|1|99':{x:63.6,y:49.3,kind:'mapped'},
-  'O|1|98':{x:63.7,y:50.1,kind:'mapped'}
-};
-
-/* Approximate hall geometry.  These are deliberately labelled estimated until corrected. */
+const EXACT={'O|1|114':{x:61.8,y:36.8},'O|1|112':{x:62.0,y:38.3},'O|1|110':{x:62.2,y:39.8},'O|1|108':{x:62.5,y:41.3},'O|1|106':{x:62.8,y:43.0},'O|1|105':{x:63.0,y:44.6},'O|1|104':{x:63.1,y:45.3},'O|1|103':{x:63.2,y:46.1},'O|1|102':{x:63.3,y:46.9},'O|1|101':{x:63.4,y:47.7},'O|1|100':{x:63.5,y:48.5},'O|1|99':{x:63.6,y:49.3},'O|1|98':{x:63.7,y:50.1}};
 const MODELS={
- A:{area:'Stalls',cx:38.0,cy:48.0,angle:178,rowMax:28,seat0:1,seatMin:1,seatMax:70,rowDx:-.08,rowDy:.83,seatDx:.42,seatDy:.02},
- B:{area:'Stalls',cx:44.5,cy:49.0,angle:180,rowMax:30,seat0:1,seatMin:1,seatMax:80,rowDx:0,rowDy:.82,seatDx:.37,seatDy:0},
- C:{area:'Stalls',cx:50.0,cy:50.0,angle:180,rowMax:32,seat0:1,seatMin:1,seatMax:90,rowDx:0,rowDy:.80,seatDx:.35,seatDy:0},
- D:{area:'Stalls',cx:55.5,cy:49.0,angle:0,rowMax:30,seat0:1,seatMin:1,seatMax:90,rowDx:0,rowDy:.82,seatDx:.37,seatDy:0},
- E:{area:'Stalls',cx:61.0,cy:48.0,angle:2,rowMax:28,seat0:1,seatMin:1,seatMax:100,rowDx:.08,rowDy:.83,seatDx:.42,seatDy:.02},
- F:{area:'Stalls',cx:66.0,cy:45.0,angle:-12,rowMax:24,seat0:1,seatMin:1,seatMax:120,rowDx:.25,rowDy:.82,seatDx:.41,seatDy:-.08},
- G:{area:'Stalls',cx:35.5,cy:38.5,angle:150,rowMax:16,seat0:1,seatMin:1,seatMax:35,rowDx:-.75,rowDy:.45,seatDx:-.38,seatDy:.22},
- H:{area:'Stalls',cx:31.5,cy:51.0,angle:178,rowMax:18,seat0:31,seatMin:1,seatMax:70,rowDx:-.85,rowDy:.04,seatDx:-.42,seatDy:.02},
- J:{area:'Stalls',cx:36.5,cy:67.0,angle:208,rowMax:18,seat0:45,seatMin:20,seatMax:90,rowDx:-.58,rowDy:.64,seatDx:-.35,seatDy:-.18},
- K:{area:'Stalls',cx:49.5,cy:73.0,angle:180,rowMax:18,seat0:56,seatMin:25,seatMax:95,rowDx:0,rowDy:.78,seatDx:-.36,seatDy:0},
- L:{area:'Stalls',cx:62.5,cy:67.0,angle:-28,rowMax:18,seat0:68,seatMin:35,seatMax:120,rowDx:.58,rowDy:.64,seatDx:.35,seatDy:-.18},
- M:{area:'Stalls',cx:69.0,cy:51.0,angle:2,rowMax:18,seat0:88,seatMin:55,seatMax:150,rowDx:.85,rowDy:.04,seatDx:.42,seatDy:.02},
- O:{area:'Stalls',cx:63.0,cy:44.6,angle:-82,rowMax:18,seat0:105,seatMin:70,seatMax:170,rowDx:1.05,rowDy:.20,seatDx:.10,seatDy:.80},
- P:{area:'Circle',cx:13.0,cy:42.0,rowMax:12,seat0:1,seatMin:1,seatMax:80,rowDx:-.65,rowDy:.25,seatDx:-.12,seatDy:.42},
- Q:{area:'Circle',cx:10.0,cy:52.0,rowMax:12,seat0:1,seatMin:1,seatMax:90,rowDx:-.65,rowDy:.05,seatDx:-.05,seatDy:.38},
- R:{area:'Circle',cx:13.0,cy:64.0,rowMax:12,seat0:1,seatMin:1,seatMax:90,rowDx:-.55,rowDy:.35,seatDx:.12,seatDy:.38},
- S:{area:'Circle',cx:22.0,cy:76.0,rowMax:12,seat0:1,seatMin:1,seatMax:100,rowDx:-.32,rowDy:.55,seatDx:.30,seatDy:.25},
- T:{area:'Circle',cx:38.0,cy:85.0,rowMax:12,seat0:1,seatMin:1,seatMax:110,rowDx:-.05,rowDy:.65,seatDx:.34,seatDy:.08},
- U:{area:'Circle',cx:55.0,cy:86.0,rowMax:12,seat0:1,seatMin:1,seatMax:110,rowDx:.05,rowDy:.65,seatDx:.34,seatDy:-.08},
- V:{area:'Circle',cx:72.0,cy:76.0,rowMax:12,seat0:1,seatMin:1,seatMax:100,rowDx:.32,rowDy:.55,seatDx:.30,seatDy:-.25},
- W:{area:'Circle',cx:86.0,cy:64.0,rowMax:12,seat0:1,seatMin:1,seatMax:90,rowDx:.55,rowDy:.35,seatDx:.12,seatDy:-.38},
- X:{area:'Circle',cx:90.0,cy:52.0,rowMax:12,seat0:1,seatMin:1,seatMax:90,rowDx:.65,rowDy:.05,seatDx:-.05,seatDy:-.38},
- Y:{area:'Circle',cx:87.0,cy:42.0,rowMax:12,seat0:1,seatMin:1,seatMax:80,rowDx:.65,rowDy:.25,seatDx:-.12,seatDy:-.42},
- EC:{area:'East Choir',cx:22.0,cy:24.0,rowMax:10,seat0:1,seatMin:1,seatMax:80,rowDx:-.35,rowDy:-.45,seatDx:.32,seatDy:-.10},
- WC:{area:'West Choir',cx:78.0,cy:24.0,rowMax:10,seat0:1,seatMin:1,seatMax:80,rowDx:.35,rowDy:-.45,seatDx:-.32,seatDy:-.10}
-};
-
-function loadCorrections(){try{return JSON.parse(localStorage.getItem(CORR_KEY)||'{}')}catch{return {}}}
-function saveCorrections(v){localStorage.setItem(CORR_KEY,JSON.stringify(v));}
-function cleanSection(v){let s=String(v||'').toUpperCase();if(/EAST\s*CHOIR/.test(s))return'EC';if(/WEST\s*CHOIR/.test(s))return'WC';return s.replace(/STALLS|SECTION|ARENA|CIRCLE|GALLERY|GRAND TIER|SECOND TIER|LOGGIA|BOX/g,'').replace(/[^A-Z]/g,'').trim();}
-function num(v){const m=String(v==null?'':v).match(/\d+/);return m?Number(m[0]):NaN;}
-function keyOf(p){return cleanSection(p.section||p.area)+'|'+num(p.row)+'|'+num(p.seat);}
-function allAnchors(){const c=loadCorrections(),out={...BASE};for(const [k,v] of Object.entries(c))out[k]={...v,kind:'corrected'};return out;}
-function generatedPoints(){const pts=[];for(const [section,m] of Object.entries(MODELS)){for(let row=1;row<=m.rowMax;row++){for(let seat=m.seatMin;seat<=m.seatMax;seat++){const ds=seat-m.seat0,dr=row-1,x=m.cx+ds*m.seatDx+dr*m.rowDx,y=m.cy+ds*m.seatDy+dr*m.rowDy;if(x>=3&&x<=97&&y>=8&&y<=94)pts.push({section,row,seat,x,y,area:m.area,kind:'estimated'});}}}return pts;}
-let GENERATED=null;function generated(){return GENERATED||(GENERATED=generatedPoints());}
-function anchorPoints(){return Object.entries(allAnchors()).map(([k,v])=>{const [section,row,seat]=k.split('|');return {section,row:Number(row),seat:Number(seat),x:v.x,y:v.y,door:v.door||'',area:v.area||MODELS[section]?.area||'',kind:v.kind||'mapped'};});}
-function nearest(x,y){let best=null,bd=Infinity;for(const p of [...anchorPoints(),...generated()]){const d=Math.hypot(p.x-x,p.y-y);if(d<bd){bd=d;best=p;}}return best?{...best,distance:bd}:null;}
-function pct(ev,img){const r=img.getBoundingClientRect();return {x:(ev.clientX-r.left)*100/r.width,y:(ev.clientY-r.top)*100/r.height};}
-function seatText(p){if(!p)return'No seat identified';const model=MODELS[p.section],area=p.area||model?.area||'Section';const section=(p.section==='EC'?'East Choir':p.section==='WC'?'West Choir':(area==='Stalls'?'Stalls ':'')+p.section);return [p.door&&'Door '+p.door,section,'Row '+p.row,'Seat '+p.seat,p.kind==='corrected'?'corrected':p.kind==='mapped'?'mapped':'estimated'].filter(Boolean).join(' · ');}
-
-/* Tolerant natural-language seat parser.  This is local/private and does not send text away. */
-function parseSeatInput(text){
- const raw=String(text||'').trim(),u=raw.toUpperCase();if(!raw)return null;
- let door=(u.match(/\bDOOR\s*[:#-]?\s*([A-Z0-9]+)/)||[])[1]||'';
- let row=(u.match(/\bROW\s*[:#-]?\s*([A-Z0-9]+)/)||[])[1]||'';
- let seat=(u.match(/\bSEAT(?:S)?\s*[:#-]?\s*(\d+)/)||[])[1]||'';
- let section='';
- if(/EAST\s*CHOIR/.test(u))section='EC';else if(/WEST\s*CHOIR/.test(u))section='WC';
- else {const m=u.match(/\b(?:STALLS|SECTION|CIRCLE|GALLERY|BOX)?\s*([A-Y])\b/);if(m)section=m[1];}
- const nums=(u.match(/\b\d+\b/g)||[]).map(Number);
- const letters=(u.match(/\b[A-Y]\b/g)||[]);
- if(!section&&letters.length)section=letters[0];
- if(!row||!seat){
-   const compact=u.replace(/[,.;/|]+/g,' ').split(/\s+/).filter(Boolean);
-   const simple=compact.filter(x=>/^[A-Z]$|^\d+$/.test(x));
-   if(simple.length>=3){const li=simple.findIndex(x=>/^[A-Y]$/.test(x));if(li>=0){section=section||simple[li];const after=simple.slice(li+1).filter(x=>/^\d+$/.test(x));if(!row&&after[0])row=after[0];if(!seat&&after[1])seat=after[1];const before=simple.slice(0,li).filter(x=>/^\d+$/.test(x));if(!door&&before.length)door=before[before.length-1];}}
- }
- if(!seat&&nums.length)seat=String(nums[nums.length-1]);if(!row&&nums.length>=2)row=String(nums[nums.length-2]);
- if(!section||!row||!seat)return null;
- const s=cleanSection(section);return {door,section:s,area:MODELS[s]?.area||(/CHOIR/.test(u)?'Choir':''),row:String(row),seat:String(seat),raw};
-}
-
-function locate(ticket){const k=keyOf(ticket),anchors=allAnchors();if(anchors[k]){const [section,row,seat]=k.split('|');return{section,row:Number(row),seat:Number(seat),...anchors[k]};}const s=cleanSection(ticket&&(ticket.section||ticket.area)),r=num(ticket&&ticket.row),n=num(ticket&&ticket.seat);const p=generated().find(q=>q.section===s&&q.row===r&&q.seat===n);return p||null;}
-
-function exportCorrections(){const blob=new Blob([JSON.stringify({format:'rah-seat-corrections-v1',savedAt:new Date().toISOString(),corrections:loadCorrections()},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='RAH-seat-corrections.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),30000);}
-function importCorrections(){const i=document.createElement('input');i.type='file';i.accept='.json,application/json';i.onchange=async()=>{try{const d=JSON.parse(await i.files[0].text()),c=d.corrections||d;if(c&&typeof c==='object'){saveCorrections({...loadCorrections(),...c});alert('Seat corrections imported.');}}catch(e){alert('Could not import corrections: '+e.message)}};i.click();}
-
-let pendingCorrection=null,lastCorrectionKey='';
-function beginCorrection(){const current=(()=>{try{if(typeof selected!=='undefined'&&selected&&typeof ticketFor==='function'){const t=ticketFor(selected)||{};return [t.door&&'Door '+t.door,t.section||t.area,t.row&&'Row '+t.row,t.seat&&'Seat '+t.seat].filter(Boolean).join(', ');}}catch(e){}return'';})();const text=prompt('Enter the seat details in any form, for example:\nDoor 9, Stalls O, Row 7, Seat 141\nor simply: 9 O 7 141',current);if(text===null)return;const p=parseSeatInput(text);if(!p){alert('I could not determine Section, Row and Seat. Try e.g. “Stalls O Row 7 Seat 141”.');return;}pendingCorrection=p;const fixed=document.getElementById('rahHoverFixed');if(fixed)fixed.textContent='Correction mode: click the exact position for '+seatText({...p,kind:'corrected'});}
-function applyCorrection(ev,img){if(!pendingCorrection)return false;const q=pct(ev,img),k=keyOf(pendingCorrection),c=loadCorrections();c[k]={x:q.x,y:q.y,door:pendingCorrection.door||'',area:pendingCorrection.area||'',source:pendingCorrection.raw,savedAt:Date.now()};saveCorrections(c);lastCorrectionKey=k;GENERATED=null;const what=seatText({...pendingCorrection,kind:'corrected'});pendingCorrection=null;alert(what+' saved at the clicked position. This correction now overrides the estimated map.');updateTicketMarker();return true;}
-function undoLastCorrection(){if(!lastCorrectionKey){alert('No correction has been made in this session.');return;}const c=loadCorrections();delete c[lastCorrectionKey];saveCorrections(c);lastCorrectionKey='';alert('Last correction removed.');updateTicketMarker();}
-
-function install(){
- const modal=document.getElementById('rahPlanModal'),img=document.getElementById('rahImg');if(!modal||!img)return;
- img.style.cursor='crosshair';img.style.filter='brightness(1.28) contrast(1.08)';
- const host=document.getElementById('pi')||img.parentElement;if(!host)return;
- const toolbar=modal.firstElementChild;
- if(toolbar&&!document.getElementById('rahCorrect')){
-   const b=document.createElement('button');b.id='rahCorrect';b.textContent='Correct seat';b.onclick=beginCorrection;toolbar.appendChild(b);
-   const u=document.createElement('button');u.id='rahUndo';u.textContent='Undo correction';u.onclick=undoLastCorrection;toolbar.appendChild(u);
-   const ex=document.createElement('button');ex.id='rahExportCorr';ex.textContent='Export corrections';ex.onclick=exportCorrections;toolbar.appendChild(ex);
-   const im=document.createElement('button');im.id='rahImportCorr';im.textContent='Import corrections';im.onclick=importCorrections;toolbar.appendChild(im);
- }
- if(!document.getElementById('rahHoverReadout')){const read=document.createElement('div');read.id='rahHoverReadout';read.style.cssText='position:fixed;display:none;z-index:100002;pointer-events:none;background:rgba(0,0,0,.90);color:white;padding:7px 10px;border-radius:6px;font:13px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;white-space:nowrap;box-shadow:0 2px 8px #0008';document.body.appendChild(read);}
- if(!document.getElementById('rahHoverFixed')){const fixed=document.createElement('div');fixed.id='rahHoverFixed';fixed.style.cssText='position:absolute;left:8px;top:8px;z-index:25;pointer-events:none;background:rgba(255,255,255,.95);color:#111;padding:6px 9px;border-radius:6px;font:12px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;box-shadow:0 1px 5px #0004';fixed.textContent='Move over the plan to identify the nearest seat';host.appendChild(fixed);}
- if(!document.getElementById('rahHoverMark')){const cross=document.createElement('div');cross.id='rahHoverMark';cross.style.cssText='display:none;position:absolute;width:12px;height:12px;transform:translate(-50%,-50%);border-radius:50%;border:2px solid #007aff;background:rgba(255,255,255,.8);pointer-events:none;z-index:20';host.appendChild(cross);}
- if(img.dataset.hoverSeats==='1')return;img.dataset.hoverSeats='1';
- const move=ev=>{const q=pct(ev,img),n=nearest(q.x,q.y),read=document.getElementById('rahHoverReadout'),fixed=document.getElementById('rahHoverFixed'),cross=document.getElementById('rahHoverMark');const text=pendingCorrection?'Correction mode: click exact position for '+seatText({...pendingCorrection,kind:'corrected'}):(n&&n.distance<3.5?seatText(n):'No seat confidently identified here');if(read){read.style.display='block';read.style.left=Math.min(window.innerWidth-330,ev.clientX+14)+'px';read.style.top=Math.min(window.innerHeight-45,ev.clientY+14)+'px';read.textContent=text;}if(fixed)fixed.textContent=text;if(cross&&n&&n.distance<3.5){cross.style.display='block';cross.style.left=n.x+'%';cross.style.top=n.y+'%';}else if(cross)cross.style.display='none';};
- img.addEventListener('pointermove',move);img.addEventListener('mousemove',move);img.addEventListener('click',ev=>{if(applyCorrection(ev,img)){ev.preventDefault();ev.stopPropagation();}});img.addEventListener('mouseleave',()=>{const r=document.getElementById('rahHoverReadout'),c=document.getElementById('rahHoverMark'),f=document.getElementById('rahHoverFixed');if(r)r.style.display='none';if(c)c.style.display='none';if(f&&!pendingCorrection)f.textContent='Move over the plan to identify the nearest seat';});
-}
-
-function updateTicketMarker(){const modal=document.getElementById('rahPlanModal');if(!modal||modal.style.display==='none')return;let ticket={};try{if(typeof selected!=='undefined'&&selected&&typeof ticketFor==='function')ticket=ticketFor(selected)||{};}catch(e){}const p=locate(ticket),mark=document.getElementById('seatMark'),label=document.getElementById('seatLabel');if(!p){if(mark)mark.style.display='none';return;}if(mark){mark.style.display='block';mark.style.left=p.x+'%';mark.style.top=p.y+'%';}if(label)label.textContent=[ticket.door&&'Door '+ticket.door,ticket.section||ticket.area,ticket.row&&'Row '+ticket.row,ticket.seat&&'Seat '+ticket.seat,p.kind==='corrected'?'corrected position':p.kind==='mapped'?'mapped position':'estimated position'].filter(Boolean).join(' · ');}
-
-/* ----- Safari / standards-based Calendar support ----- */
-function escICS(s){return String(s||'').replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');}
-function dtICS(date,time){let h=19,m=30;const x=String(time||'').match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);if(x){h=Number(x[1]);m=Number(x[2]||0);if(/pm/i.test(x[3]||'')&&h<12)h+=12;if(/am/i.test(x[3]||'')&&h===12)h=0;}return String(date||'').replace(/-/g,'')+'T'+String(h).padStart(2,'0')+String(m).padStart(2,'0')+'00';}
-function selectedRecords(){try{const all=loadTickets();return concerts.filter(c=>{const t=all[keyFor(c)]||{};return t.myProm||t.hasTicket;}).map(c=>({c,t:all[keyFor(c)]||{}}));}catch(e){return[];}}
-function recordDescription(c,t){return ['BBC '+(typeof promLabel==='function'?promLabel(c):'Prom'),'Door: '+(t.door||''),'Section: '+(t.section||t.area||''),'Row: '+(t.row||''),'Seat: '+(t.seat||''),'Reference: '+(t.reference||''),'',c.programme||'','',c.performers||'','',t.notes||''].join('\n');}
-function downloadICS(){const rows=selectedRecords();if(!rows.length){alert('Mark at least one concert as My Prom or attach a ticket first.');return;}const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Proms Lister//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH'];for(const {c,t} of rows){const start=dtICS(c.date,c.time),end=start.slice(0,9)+String(Math.min(23,Number(start.slice(9,11))+3)).padStart(2,'0')+start.slice(11);lines.push('BEGIN:VEVENT','UID:'+escICS(keyFor(c))+'@proms-lister','DTSTART:'+start,'DTEND:'+end,'SUMMARY:'+escICS((typeof promLabel==='function'?promLabel(c)+' — ':'')+(c.title||'Prom')),'LOCATION:'+escICS([c.venue||'Royal Albert Hall',t.door&&'Door '+t.door,t.section||t.area,t.row&&'Row '+t.row,t.seat&&'Seat '+t.seat].filter(Boolean).join(' · ')),'DESCRIPTION:'+escICS(recordDescription(c,t)),'END:VEVENT');}lines.push('END:VCALENDAR');const blob=new Blob([lines.join('\r\n')],{type:'text/calendar;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Proms-Lister.ics';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),30000);}
-async function downloadSafariSyncZip(){if(typeof JSZip==='undefined'){downloadICS();return;}const rows=selectedRecords();if(!rows.length){alert('Mark at least one concert as My Prom or attach a ticket first.');return;}const zip=new JSZip(),records=[];for(const {c,t} of rows){let ticketFile='';if(t.pdfName&&typeof pdfGet==='function'){try{const rec=await pdfGet(keyFor(c));if(rec){const fn=(typeof safeTicketName==='function'?safeTicketName(c,t):('Prom_'+(typeof promNumber==='function'?promNumber(c):'')+'_'+rec.name)).replace(/[^A-Za-z0-9._-]+/g,'_');zip.file('Tickets/'+fn,rec.blob);ticketFile='Tickets/'+fn;}}catch(e){console.warn(e)}}let r;if(typeof calendarRecord==='function')r=calendarRecord(c,t,ticketFile);else r={id:keyFor(c),promNumber:typeof promNumber==='function'?promNumber(c):'',title:c.title,date:c.date,time:c.time,venue:c.venue,programme:c.programme,performers:c.performers,broadcast:c.broadcast,price:c.price,myProm:!!t.myProm,hasTicket:!!t.hasTicket,area:t.area,section:t.section,row:t.row,seat:t.seat,door:t.door,reference:t.reference,ticketFile,notes:t.notes};records.push(r);}zip.file('PromsCalendarSync.json',JSON.stringify({format:'proms-calendar-sync-v2',generatedAt:new Date().toISOString(),records},null,2));const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='PromsCalendarSync.zip';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),30000);alert('Safari calendar package downloaded. The Mac helper can import this ZIP from Downloads on its next run.');}
-function isSafari(){return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);}
-function addCalendarUI(){const menu=document.querySelector('#homePage .home-menu');if(!menu)return;if(!document.getElementById('safariCalendarExport')){const b=document.createElement('button');b.id='safariCalendarExport';b.className='home-button';b.innerHTML='Calendar export / Safari<small>Download a Mac-helper ZIP, or an .ics file for direct Calendar import</small>';b.onclick=()=>{const choice=confirm('OK: download the full Mac-helper ZIP (includes ticket PDFs).\nCancel: download a standard .ics Calendar file.');if(choice)downloadSafariSyncZip();else downloadICS();};menu.appendChild(b);}const hc=document.getElementById('homeCalendar');if(hc&&isSafari()&&!hc.dataset.safari){hc.dataset.safari='1';hc.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();downloadSafariSyncZip();},true);hc.querySelector('small')&&(hc.querySelector('small').textContent='Safari: download a sync package for the Mac helper');}}
-
-function tick(){install();updateTicketMarker();addCalendarUI();}
-const observer=new MutationObserver(tick);observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['style']});if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',tick);else tick();setInterval(tick,900);
-window.RAHSeatMap={parseSeatInput,loadCorrections,nearest,locate,install,beginCorrection,exportCorrections,importCorrections};
-window.PromsCalendarSafari={downloadICS,downloadSafariSyncZip};
+A:{name:'Stalls A',rows:12,seats:[1,12],quad:[[37.5,38],[44,38],[42,61],[34,59]]},B:{name:'Stalls B',rows:12,seats:[1,12],quad:[[34,59],[42,61],[43,69],[35,66]]},C:{name:'Stalls C',rows:30,seats:[1,32],quad:[[42,38],[49,38],[49,68],[43,69]]},D:{name:'Stalls D',rows:30,seats:[1,32],quad:[[49,38],[56,38],[57,69],[49,68]]},E:{name:'Stalls E',rows:12,seats:[1,12],quad:[[56,38],[62.5,38],[66,59],[57,61]]},F:{name:'Stalls F',rows:12,seats:[1,12],quad:[[57,61],[66,59],[65,66],[57,69]]},G:{name:'Stalls G',rows:12,seats:[1,30],quad:[[29,32],[40,36],[33,50],[20,46]]},H:{name:'Stalls H',rows:14,seats:[31,56],quad:[[20,48],[34,50],[35,64],[18,63]]},J:{name:'Stalls J',rows:14,seats:[45,72],quad:[[18,64],[35,66],[42,76],[24,79]]},K:{name:'Stalls K',rows:14,seats:[56,83],quad:[[35,66],[57,69],[58,82],[42,76]]},L:{name:'Stalls L',rows:14,seats:[68,101],quad:[[57,69],[66,64],[82,79],[58,82]]},M:{name:'Stalls M',rows:14,seats:[88,145],quad:[[66,50],[80,48],[82,63],[65,64]]},O:{name:'Stalls O',rows:14,seats:[98,165],quad:[[60,36],[71,32],[80,46],[66,50]]},P:{name:'Circle P',rows:10,seats:[1,34],quad:[[11,29],[25,31],[18,43],[6,39]]},Q:{name:'Circle Q',rows:10,seats:[1,38],quad:[[6,39],[18,43],[17,54],[4,52]]},R:{name:'Circle R',rows:10,seats:[1,40],quad:[[4,52],[17,54],[20,67],[6,65]]},S:{name:'Circle S',rows:10,seats:[1,42],quad:[[6,65],[20,67],[27,79],[11,78]]},T:{name:'Circle T',rows:10,seats:[1,44],quad:[[27,79],[43,83],[42,94],[23,91]]},U:{name:'Circle U',rows:10,seats:[1,44],quad:[[43,83],[58,82],[77,91],[42,94]]},V:{name:'Circle V',rows:10,seats:[1,42],quad:[[58,82],[73,79],[89,78],[77,91]]},W:{name:'Circle W',rows:10,seats:[1,40],quad:[[73,67],[82,63],[94,65],[89,78]]},X:{name:'Circle X',rows:10,seats:[1,38],quad:[[82,54],[83,43],[96,52],[94,65]]},Y:{name:'Circle Y',rows:10,seats:[1,34],quad:[[83,43],[75,31],[94,39],[96,52]]},EC:{name:'East Choir',rows:8,seats:[1,30],quad:[[22,15],[42,20],[37,28],[18,23]]},WC:{name:'West Choir',rows:8,seats:[1,30],quad:[[58,20],[78,15],[82,23],[63,28]]}};
+function lerp(a,b,t){return a+(b-a)*t} function bilerp(q,u,v){const a=[lerp(q[0][0],q[1][0],u),lerp(q[0][1],q[1][1],u)],b=[lerp(q[3][0],q[2][0],u),lerp(q[3][1],q[2][1],u)];return{x:lerp(a[0],b[0],v),y:lerp(a[1],b[1],v)}}
+function num(v){const m=String(v==null?'':v).match(/\d+/);return m?Number(m[0]):NaN} function clean(v){const u=String(v||'').toUpperCase();if(/EAST\s*CHOIR/.test(u))return'EC';if(/WEST\s*CHOIR/.test(u))return'WC';return u.replace(/SECTION|STALLS|ARENA|CIRCLE|RAUSING|GRAND TIER|SECOND TIER|LOGGIA|BOX/g,'').replace(/[^A-Z]/g,'').trim()} function key(s,r,n){return s+'|'+r+'|'+n}
+function corrections(){try{return JSON.parse(localStorage.getItem(CORR_KEY)||'{}')}catch(e){return{}}} function save(c){try{localStorage.setItem(CORR_KEY,JSON.stringify(c))}catch(e){}}
+let cache=null;function build(){if(cache)return cache;const out=[];for(const [s,m] of Object.entries(MODELS)){const lo=m.seats[0],baseHi=m.seats[1];for(let r=1;r<=m.rows;r++){const v=m.rows===1?0:(r-1)/(m.rows-1),grow=Math.round(v*((/^[G-MO]$/.test(s))?8:(/^[P-Y]$/.test(s)?6:2))),hi=baseHi+grow;for(let n=lo;n<=hi;n++){const u=hi===lo?.5:(n-lo)/(hi-lo),p=bilerp(m.quad,u,v),ex=EXACT[key(s,r,n)];out.push({section:s,row:r,seat:n,x:ex?ex.x:p.x,y:ex?ex.y:p.y,kind:ex?'mapped':'estimated',name:m.name})}}}cache=out;return out}
+function anchors(){const c=corrections();return Object.entries(c).map(([k,p])=>{const a=k.split('|');return{section:a[0],row:Number(a[1]),seat:Number(a[2]),x:p.x,y:p.y,door:p.door||'',kind:'corrected',name:(MODELS[a[0]]||{}).name||a[0]}})}
+function nearest(x,y){let best=null,d=Infinity;for(const p of anchors().concat(build())){const q=(p.x-x)*(p.x-x)+(p.y-y)*(p.y-y);if(q<d){d=q;best=p}}return best?Object.assign({},best,{distance:Math.sqrt(d)}):null}
+function locate(t){const s=clean(t&&(t.section||t.area)),r=num(t&&t.row),n=num(t&&t.seat);if(!s||!Number.isFinite(r)||!Number.isFinite(n))return null;const c=corrections()[key(s,r,n)];if(c)return{section:s,row:r,seat:n,x:c.x,y:c.y,door:c.door||'',kind:'corrected',name:(MODELS[s]||{}).name||s};const ex=EXACT[key(s,r,n)];if(ex)return{section:s,row:r,seat:n,x:ex.x,y:ex.y,kind:'mapped',name:(MODELS[s]||{}).name||s};let best=null,d=Infinity;for(const p of build()){if(p.section===s&&p.row===r){const q=Math.abs(p.seat-n);if(q<d){d=q;best=p;if(!q)break}}}return best}
+function seatText(p){return p?[p.door&&'Door '+p.door,p.name,'Row '+p.row,'Seat '+p.seat,p.kind==='corrected'?'corrected':p.kind==='mapped'?'mapped':'estimated'].filter(Boolean).join(' · '):'No seat identified'}
+function pct(ev,img){const r=img.getBoundingClientRect();return{x:(ev.clientX-r.left)*100/r.width,y:(ev.clientY-r.top)*100/r.height}}
+function parse(text){const u=String(text||'').toUpperCase(),door=(u.match(/DOOR\s*[:#-]?\s*([A-Z0-9]+)/)||[])[1]||'',row=(u.match(/ROW\s*[:#-]?\s*(\d+)/)||[])[1],seat=(u.match(/SEAT\w*\s*[:#-]?\s*(\d+)/)||[])[1];let s='';if(/EAST\s*CHOIR/.test(u))s='EC';else if(/WEST\s*CHOIR/.test(u))s='WC';else{s=(u.match(/(?:STALLS|SECTION|CIRCLE)?\s*([A-Y])\b/)||[])[1]||''}let nums=(u.match(/\b\d+\b/g)||[]);let rr=row,nn=seat;if(!nn&&nums.length)nn=nums[nums.length-1];if(!rr&&nums.length>1)rr=nums[nums.length-2];return s&&rr&&nn?{door,section:s,row:Number(rr),seat:Number(nn)}:null}
+let pending=null,last='';function beginCorrection(){let def='';try{if(typeof selected!=='undefined'&&selected&&typeof ticketFor==='function'){const t=ticketFor(selected)||{};def=[t.door&&'Door '+t.door,t.section||t.area,t.row&&'Row '+t.row,t.seat&&'Seat '+t.seat].filter(Boolean).join(' ')}}catch(e){}const text=prompt('Seat to correct (for example: Door 9 Stalls O Row 7 Seat 141)',def);if(text===null)return;pending=parse(text);if(!pending){alert('Could not read Section, Row and Seat.');return}const f=document.getElementById('rahHoverFixed');if(f)f.textContent='Now click the exact position for '+seatText(Object.assign({},pending,{name:(MODELS[pending.section]||{}).name||pending.section,kind:'corrected'}))}
+function install(){const img=document.getElementById('rahImg');if(!img)return;const host=document.getElementById('pi')||img.parentElement;if(!host)return;img.style.cursor='crosshair';img.style.filter='brightness(1.28) contrast(1.08)';let fixed=document.getElementById('rahHoverFixed');if(!fixed){fixed=document.createElement('div');fixed.id='rahHoverFixed';fixed.style.cssText='position:absolute;left:8px;top:8px;z-index:25;pointer-events:none;background:#fffffff2;color:#111;padding:7px 10px;border-radius:6px;font:600 13px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif';fixed.textContent='Move over the plan for seat details';host.appendChild(fixed)}let bar=document.getElementById('rahCorrectionBar');if(!bar){bar=document.createElement('div');bar.id='rahCorrectionBar';bar.style.cssText='position:absolute;right:8px;top:8px;z-index:26;display:flex;gap:6px';const b=document.createElement('button');b.textContent='Correct seat';b.onclick=function(e){e.stopPropagation();beginCorrection()};bar.appendChild(b);host.appendChild(bar)}if(img.dataset.seatRepair==='1')return;img.dataset.seatRepair='1';img.addEventListener('mousemove',function(ev){if(pending)return;const q=pct(ev,img),n=nearest(q.x,q.y);fixed.textContent=n&&n.distance<4?seatText(n):'No seat identified at this point'});img.addEventListener('click',function(ev){if(!pending)return;ev.preventDefault();ev.stopPropagation();const q=pct(ev,img),k=key(pending.section,pending.row,pending.seat),c=corrections();c[k]={x:q.x,y:q.y,door:pending.door||'',savedAt:Date.now()};save(c);last=k;pending=null;fixed.textContent='Correction saved';updateMarker()});img.addEventListener('mouseleave',function(){if(!pending)fixed.textContent='Move over the plan for seat details'})}
+function updateMarker(){let t={};try{if(typeof selected!=='undefined'&&selected&&typeof ticketFor==='function')t=ticketFor(selected)||{}}catch(e){}const p=locate(t),m=document.getElementById('seatMark'),l=document.getElementById('seatLabel');if(!p){if(m)m.style.display='none';return}if(m){m.style.display='block';m.style.left=p.x+'%';m.style.top=p.y+'%'}if(l)l.textContent=[t.door&&'Door '+t.door,p.name,'Row '+p.row,'Seat '+p.seat].filter(Boolean).join(' · ')+(p.kind==='estimated'?' — estimated':'')}
+function tick(){install();updateMarker()} if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',tick);else tick();setInterval(tick,1200);window.RAHSeatMap={locate,nearest,install,correct:beginCorrection};
 })();
