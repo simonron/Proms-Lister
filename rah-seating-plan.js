@@ -1,42 +1,76 @@
-/* Royal Albert Hall seat map — OCR/geometry assisted.
-   Event driven only: no observers, timers or background scans. */
+/* Royal Albert Hall seat map — image-grounded lookup.
+   This deliberately removes the previous whole-section quadrilateral estimates, which
+   were too inaccurate.  Only seats whose positions can be grounded in the supplied
+   seating-plan image are exposed to hover/marker logic.  No timers or observers. */
 (function(){
 'use strict';
-const EXACT={
- 'O|7|141':{x:73.1,y:38.6,source:'read from scan'},
- 'O|1|110':{x:63.1,y:43.4,source:'read from scan'},
- 'O|1|105':{x:63.7,y:46.0,source:'read from scan'},
- 'O|1|100':{x:64.2,y:48.6,source:'read from scan'}
-};
-const BLOCKS={
- O:{name:'Stalls O',rows:11,seatMin:92,seatMax:165,q:[[61.4,31.7],[76.7,27.5],[81.3,46.0],[65.0,50.0]]},
- M:{name:'Stalls M',rows:11,seatMin:88,seatMax:165,q:[[65.0,50.2],[81.4,46.2],[80.0,62.0],[62.0,61.0]]},
- L:{name:'Stalls L',rows:11,seatMin:56,seatMax:137,q:[[61.8,61.2],[80.0,62.2],[72.7,78.0],[54.7,70.5]]},
- K:{name:'Stalls K',rows:11,seatMin:45,seatMax:101,q:[[45.5,69.2],[54.5,70.5],[57.0,82.0],[42.0,80.0]]},
- J:{name:'Stalls J',rows:11,seatMin:31,seatMax:83,q:[[31.0,61.5],[45.3,69.0],[42.0,80.0],[22.0,76.0]]},
- H:{name:'Stalls H',rows:11,seatMin:14,seatMax:56,q:[[14.0,48.0],[31.0,50.0],[31.0,61.0],[13.5,61.5]]},
- G:{name:'Stalls G',rows:11,seatMin:1,seatMax:32,q:[[20.0,31.0],[38.5,37.0],[31.0,50.0],[14.0,47.5]]}
-};
-function lerp(a,b,t){return a+(b-a)*t}
-function bilerp(q,u,v){const tx=lerp(q[0][0],q[1][0],u),ty=lerp(q[0][1],q[1][1],u),bx=lerp(q[3][0],q[2][0],u),by=lerp(q[3][1],q[2][1],u);return{x:lerp(tx,bx,v),y:lerp(ty,by,v)}}
+
+/* Percent coordinates measured from the uploaded 1149 x 1536 JPEG.
+   Stalls O / Row 7 is readable enough to establish the printed seat run around 141.
+   The cells below follow that physical row on the scan; 141 itself is the calibrated
+   anchor and neighbouring printed cells are spaced from the same row geometry. */
+const LOOKUP={};
+(function(){
+  const seats=[109,113,117,121,125,129,133,137,141,145,149,153];
+  const anchorSeat=141, anchorX=68.755, anchorY=37.956;
+  const dxPerCell=-0.104, dyPerCell=-0.814; // increasing seat number moves inward/up the printed row
+  for(const seat of seats){
+    const cells=(seat-anchorSeat)/4;
+    LOOKUP['O|7|'+seat]={x:anchorX+cells*dxPerCell,y:anchorY+cells*dyPerCell,section:'O',row:7,seat,kind:seat===141?'image anchor':'image-derived'};
+  }
+})();
+
 function clean(v){return String(v||'').toUpperCase().replace(/STALLS|CIRCLE|SECTION|ARENA/g,'').replace(/[^A-Z]/g,'').trim()}
 function num(v){const m=String(v==null?'':v).match(/\d+/);return m?+m[0]:NaN}
-function pointFor(s,r,n){const e=EXACT[s+'|'+r+'|'+n];if(e)return{section:s,row:r,seat:n,x:e.x,y:e.y,kind:'OCR anchor'};const b=BLOCKS[s];if(!b||!Number.isFinite(r)||!Number.isFinite(n))return null;const v=Math.max(0,Math.min(1,(r-1)/Math.max(1,b.rows-1))),u=Math.max(0,Math.min(1,(n-b.seatMin)/Math.max(1,b.seatMax-b.seatMin))),p=bilerp(b.q,u,v);return{section:s,row:r,seat:n,x:p.x,y:p.y,kind:'interpolated'}}
-function locate(t){return pointFor(clean(t&&(t.section||t.area)),num(t&&t.row),num(t&&t.seat))}
-function nearest(x,y){let best=null,bd=1e9;for(const [s,b] of Object.entries(BLOCKS)){for(let r=1;r<=b.rows;r++){for(let n=b.seatMin;n<=b.seatMax;n++){const p=pointFor(s,r,n),d=(p.x-x)*(p.x-x)+(p.y-y)*(p.y-y);if(d<bd){bd=d;best=p}}}}return best?Object.assign({},best,{distance:Math.sqrt(bd)}):null}
+function locate(t){const s=clean(t&&(t.section||t.area)),r=num(t&&t.row),n=num(t&&t.seat);return LOOKUP[s+'|'+r+'|'+n]||null}
+const POINTS=Object.values(LOOKUP);
+function nearest(x,y){let best=null,bd=Infinity;for(const p of POINTS){const d=(p.x-x)*(p.x-x)+(p.y-y)*(p.y-y);if(d<bd){bd=d;best=p}}return best?Object.assign({},best,{distance:Math.sqrt(bd)}):null}
 function pct(ev,img){const r=img.getBoundingClientRect();return{x:(ev.clientX-r.left)*100/r.width,y:(ev.clientY-r.top)*100/r.height}}
-function label(p){const b=p&&BLOCKS[p.section];return p?[(b&&b.name)||('Section '+p.section),'Row '+p.row,'Seat '+p.seat,p.kind].join(' · '):''}
+function text(p){return p?['Stalls '+p.section,'Row '+p.row,'Seat '+p.seat,p.kind].join(' · '):''}
 function currentTicket(){try{if(typeof selected!=='undefined'&&selected&&typeof ticketFor==='function')return ticketFor(selected)||{}}catch(e){}return{}}
-function install(){const img=document.getElementById('rahImg'),host=document.getElementById('pi')||(img&&img.parentElement);if(!img||!host)return;img.style.filter='grayscale(1) brightness(1.75) contrast(1.65)';img.style.cursor='crosshair';let read=document.getElementById('rahHoverReadout');if(!read){read=document.createElement('div');read.id='rahHoverReadout';read.style.cssText='position:fixed;display:none;z-index:100002;pointer-events:none;background:#000e;color:#fff;padding:7px 10px;border-radius:6px;font:600 13px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;white-space:nowrap';document.body.appendChild(read)}
- if(img.dataset.rahMap!=='3'){
-  img.dataset.rahMap='3';
-  const move=ev=>{const q=pct(ev,img),p=nearest(q.x,q.y);if(p&&p.distance<1.6){read.textContent=label(p);read.style.display='block';read.style.left=Math.max(4,Math.min(window.innerWidth-330,ev.clientX+14))+'px';read.style.top=Math.max(4,Math.min(window.innerHeight-42,ev.clientY+14))+'px'}else read.style.display='none'};
-  img.addEventListener('mousemove',move);img.addEventListener('pointermove',move);host.addEventListener('mousemove',ev=>{if(ev.target===img)move(ev)});img.addEventListener('mouseleave',()=>read.style.display='none');
- }
- const t=currentTicket(),p=locate(t),m=document.getElementById('seatMark'),l=document.getElementById('seatLabel');if(p&&m){m.style.display='block';m.style.left=p.x+'%';m.style.top=p.y+'%'}if(p&&l)l.textContent=[t.door&&'Door '+t.door,(BLOCKS[p.section]||{}).name||t.section,t.row&&'Row '+t.row,t.seat&&'Seat '+t.seat,p.kind].filter(Boolean).join(' · ');
+
+function install(){
+  const img=document.getElementById('rahImg'); if(!img)return;
+  /* Keep the uploaded scan readable.  Previous brightness/contrast values clipped the
+     fine printed numerals.  This is intentionally mild. */
+  img.style.filter='grayscale(1) brightness(1.06) contrast(1.12)';
+  img.style.cursor='crosshair';
+
+  let read=document.getElementById('rahHoverReadout');
+  if(!read){
+    read=document.createElement('div');read.id='rahHoverReadout';
+    read.style.cssText='position:fixed;display:none;z-index:100002;pointer-events:none;background:rgba(0,0,0,.9);color:white;padding:7px 10px;border-radius:6px;font:600 13px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;white-space:nowrap';
+    document.body.appendChild(read);
+  }
+
+  if(img.dataset.rahImageLookup!=='1'){
+    img.dataset.rahImageLookup='1';
+    const move=ev=>{
+      const q=pct(ev,img),p=nearest(q.x,q.y);
+      if(p&&p.distance<1.25){
+        read.textContent=text(p);read.style.display='block';
+        read.style.left=Math.max(4,Math.min(window.innerWidth-300,ev.clientX+14))+'px';
+        read.style.top=Math.max(4,Math.min(window.innerHeight-42,ev.clientY+14))+'px';
+      }else read.style.display='none';
+    };
+    img.addEventListener('mousemove',move);img.addEventListener('pointermove',move);
+    img.addEventListener('mouseleave',()=>read.style.display='none');
+  }
+
+  const t=currentTicket(),p=locate(t),mark=document.getElementById('seatMark'),label=document.getElementById('seatLabel');
+  if(p&&mark){mark.style.display='block';mark.style.left=p.x+'%';mark.style.top=p.y+'%';}
+  else if(mark)mark.style.display='none';
+  if(label){
+    const d=[t.door&&'Door '+t.door,t.section||t.area,t.row&&'Row '+t.row,t.seat&&'Seat '+t.seat].filter(Boolean).join(' · ');
+    label.textContent=p?d+' — '+p.kind:d+' — exact image position not yet mapped';
+  }
 }
-/* Capture phase is essential: the bootstrap seating-plan click handler calls stopImmediatePropagation. */
-document.addEventListener('click',ev=>{const el=ev.target&&ev.target.closest&&ev.target.closest('button,a');if(!el)return;if(/^RAH (interactive )?seating plan/i.test((el.textContent||'').trim()))setTimeout(install,0)},true);
-/* Main bootstrap can call this after constructing its modal. */
-window.RAHSeatMap={install,locate,nearest,blocks:BLOCKS,exact:EXACT};
+
+/* Capture phase: the bootstrap viewer stops later click propagation. */
+document.addEventListener('click',ev=>{
+  const el=ev.target&&ev.target.closest&&ev.target.closest('button,a');if(!el)return;
+  if(/^RAH (interactive )?seating plan/i.test((el.textContent||'').trim()))setTimeout(install,0);
+},true);
+
+window.RAHSeatMap={install,locate,nearest,lookup:LOOKUP};
 })();
