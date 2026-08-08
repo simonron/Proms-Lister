@@ -3,7 +3,7 @@
 <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:2rem">Loading Proms Lister…</div>
 <script>
 (async()=>{
- const r=await fetch('./Proms-Lister-Calendar/index.html?vr=2.3',{cache:'no-store'});if(!r.ok)throw Error('Could not load Proms Lister source: '+r.status);let h=await r.text();
+ const r=await fetch('./Proms-Lister-Calendar/index.html?vr=2.4',{cache:'no-store'});if(!r.ok)throw Error('Could not load Proms Lister source: '+r.status);let h=await r.text();
  h=h.replace('<head>','<head><base href="/Proms-Lister/">');
  const old='<button class="btn" id="attachPdf">Attach Ticket</button><button class="btn" id="openPdf">Open Ticket</button><button class="btn danger" id="removeTicket">Remove ticket</button>';
  const neu='<button class="btn" id="attachPdf">Attach Ticket</button><button class="btn" id="refreshTicket">Refresh Ticket Details</button><button class="btn" id="openPdf">Open Ticket</button><button class="btn danger" id="removeTicket">Remove ticket</button><button class="btn" id="closeTicketView">Close</button>';
@@ -36,48 +36,25 @@ async function refreshTicketDetails(c){
   for(const f of ['door','section','row','seat','reference'])if(best[f])t[f]=best[f];
   if(best.notes&&!String(t.notes||'').includes(best.notes))t.notes=[t.notes,best.notes].filter(Boolean).join('\\n');
   all[k]=t;saveTickets(all);render();openDetail(c);await writeCalendarSyncFile();
-  if(!['door','section','row','seat'].some(f=>best[f]))alert('Ticket refreshed, but no Door / Section / Row / Seat details could be read from the stored ticket page.');
  }catch(e){console.error(e);alert('Ticket refresh failed: '+(e&&e.message?e.message:e));if(b){b.disabled=false;b.textContent='Refresh Ticket Details'}}
 }
 async function importPdfs(files){
  let ok=0,fail=[];
- for(const file of files){
-  try{
-   const isPdf=file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf');
-   const pages=isPdf?await pdfPages(file):[await imageText(file)];
-   const storedType=file.type||mimeForName(file.name)||'application/octet-stream';
-   if(window.attachTarget){
-    const c=window.attachTarget,idx=bestTicketPage(c,pages,0),parsed=parseTicket(pages[idx]),all=loadTickets(),k=keyFor(c),old=all[k]||{};
-    all[k]={...old,...parsed,hasTicket:true,pdfName:file.name,fileType:storedType,ticketPage:idx+1};saveTickets(all);
-    await pdfPut(k,new Blob([file],{type:storedType}),file.name);ok++;
-   }else{
-    for(let i=0;i<pages.length;i++){
-     const page=pages[i],pageText=typeof page==='string'?page:(page.text||''),c=matchConcert(pageText);if(!c)continue;
-     const parsed=parseTicket(page),all=loadTickets(),k=keyFor(c),old=all[k]||{};
-     all[k]={...old,...parsed,hasTicket:true,pdfName:file.name,fileType:storedType,ticketPage:i+1};saveTickets(all);
-     await pdfPut(k,new Blob([file],{type:storedType}),file.name);ok++;
-    }
-   }
-   window.attachTarget=null;
-  }catch(e){console.error(e);fail.push(file.name);window.attachTarget=null}
- }
+ for(const file of files){try{
+  const isPdf=file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf'),pages=isPdf?await pdfPages(file):[await imageText(file)],storedType=file.type||mimeForName(file.name)||'application/octet-stream';
+  if(window.attachTarget){const c=window.attachTarget,idx=bestTicketPage(c,pages,0),parsed=parseTicket(pages[idx]),all=loadTickets(),k=keyFor(c),old=all[k]||{};all[k]={...old,...parsed,hasTicket:true,pdfName:file.name,fileType:storedType,ticketPage:idx+1};saveTickets(all);await pdfPut(k,new Blob([file],{type:storedType}),file.name);ok++}
+  else for(let i=0;i<pages.length;i++){const page=pages[i],pageText=typeof page==='string'?page:(page.text||''),c=matchConcert(pageText);if(!c)continue;const parsed=parseTicket(page),all=loadTickets(),k=keyFor(c),old=all[k]||{};all[k]={...old,...parsed,hasTicket:true,pdfName:file.name,fileType:storedType,ticketPage:i+1};saveTickets(all);await pdfPut(k,new Blob([file],{type:storedType}),file.name);ok++}
+  window.attachTarget=null;
+ }catch(e){console.error(e);fail.push(file.name);window.attachTarget=null}}
  render();$('importStatus').textContent=\`Imported \${ok} ticket\${ok===1?'':'s'}\${fail.length?\`; could not read: \${fail.join(', ')}\`:''}\`;if(selected)openDetail(selected);writeCalendarSyncFile();
 }
 async function openPdf(c){
- const rec=await pdfGet(keyFor(c));if(!rec){alert('No ticket is attached to this concert.');return}
- const type=rec.blob.type||mimeForName(rec.name)||'application/octet-stream';
- const isPdf=type==='application/pdf'||String(rec.name||'').toLowerCase().endsWith('.pdf');
- if(!isPdf){const u=URL.createObjectURL(new Blob([rec.blob],{type}));window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),60000);return}
- const win=window.open('','_blank');if(!win){alert('Please allow pop-ups so the ticket can be displayed.');return}
- win.document.write('<!doctype html><title>Loading ticket…</title><body style="font-family:-apple-system,sans-serif;padding:20px">Loading the correct ticket…</body>');
- try{
-  const pages=await pdfPages(rec.blob),all=loadTickets(),k=keyFor(c),t=all[k]||{},idx=bestTicketPage(c,pages,t.ticketPage);
-  if(t.ticketPage!==idx+1){all[k]={...t,ticketPage:idx+1,updatedAt:Date.now()};saveTickets(all)}
-  const pdf=await pdfjsLib.getDocument({data:await rec.blob.arrayBuffer()}).promise,page=await pdf.getPage(idx+1),vp=page.getViewport({scale:2.2}),canvas=document.createElement('canvas');
-  canvas.width=Math.ceil(vp.width);canvas.height=Math.ceil(vp.height);await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
-  const data=canvas.toDataURL('image/png'),label=[promLabel(c),c.title,t.section||t.area,t.row&&'Row '+t.row,t.seat&&'Seat '+t.seat,t.door&&'Door '+t.door].filter(Boolean).join(' · ');
-  win.document.open();win.document.write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(label)+'</title><style>body{margin:0;background:#eee;font-family:-apple-system,sans-serif}.bar{position:sticky;top:0;background:#fff;padding:10px 14px;border-bottom:1px solid #bbb;display:flex;justify-content:space-between;gap:12px;align-items:center}.ticket{display:block;max-width:100%;height:auto;margin:0 auto;background:#fff}button{font:inherit;padding:7px 12px}</style></head><body><div class="bar"><strong>'+esc(label)+'</strong><button onclick="window.close()">Close</button></div><img class="ticket" alt="Ticket" src="'+data+'"></body></html>');win.document.close();
- }catch(e){console.error(e);win.document.body.innerHTML='<pre style="white-space:pre-wrap;color:#900">Could not display ticket: '+esc(e&&e.message?e.message:e)+'</pre>'}
+ const k=keyFor(c),rec=await pdfGet(k);if(!rec){alert('No ticket is attached to this concert.');return}
+ const type=rec.blob.type||mimeForName(rec.name)||'application/octet-stream',blob=new Blob([rec.blob],{type}),u=URL.createObjectURL(blob),t=ticketFor(c);
+ if(type!=='application/pdf'&&!String(rec.name||'').toLowerCase().endsWith('.pdf')){window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),120000);return}
+ let page=Number(t.ticketPage||0);
+ if(!page){try{const pages=await pdfPages(rec.blob),all=loadTickets(),idx=bestTicketPage(c,pages,0);page=idx+1;all[k]={...t,ticketPage:page,updatedAt:Date.now()};saveTickets(all)}catch(e){console.warn('Could not determine ticket page',e);page=1}}
+ const w=window.open(u+'#page='+page+'&zoom=page-width','_blank');if(!w)alert('Please allow pop-ups so the ticket can be displayed.');setTimeout(()=>URL.revokeObjectURL(u),300000);
 }
 `;
  if(!h.includes(anchor))throw Error('Close-sheet anchor not found in source');h=h.replace(anchor,patch+anchor);
