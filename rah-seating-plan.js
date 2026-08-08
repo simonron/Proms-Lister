@@ -23,17 +23,20 @@ function install(){
  const modal=document.getElementById('rahPlanModal'),img=document.getElementById('rahImg');
  if(!modal||!img||img.dataset.hoverSeats==='1')return;
  img.dataset.hoverSeats='1';
- const host=document.getElementById('pi')||img.parentElement;
- const read=document.createElement('div');read.id='rahHoverReadout';read.style.cssText='position:fixed;display:none;z-index:100002;pointer-events:none;background:rgba(0,0,0,.88);color:white;padding:6px 9px;border-radius:6px;font:13px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;white-space:nowrap;box-shadow:0 2px 8px #0008';document.body.appendChild(read);
- const cross=document.createElement('div');cross.id='rahHoverMark';cross.style.cssText='display:none;position:absolute;width:12px;height:12px;margin:-6px;border-radius:50%;border:2px solid #00a7ff;background:rgba(255,255,255,.7);pointer-events:none;z-index:20';host.appendChild(cross);
  img.style.cursor='crosshair';
+ /* The supplied scan tops out around light grey rather than RGB white. Brighten only the display; geometry and stored JPEG coordinates stay unchanged. */
+ img.style.filter='brightness(1.28)';
+ const host=document.getElementById('pi')||img.parentElement;
+ const read=document.createElement('div');read.id='rahHoverReadout';read.style.cssText='position:fixed;display:none;z-index:100002;pointer-events:none;background:rgba(0,0,0,.90);color:white;padding:7px 10px;border-radius:6px;font:13px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;white-space:nowrap;box-shadow:0 2px 8px #0008';document.body.appendChild(read);
+ const fixed=document.createElement('div');fixed.id='rahHoverFixed';fixed.style.cssText='position:absolute;left:8px;bottom:8px;z-index:25;pointer-events:none;background:rgba(255,255,255,.94);color:#111;padding:6px 9px;border-radius:6px;font:12px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;box-shadow:0 1px 5px #0004';fixed.textContent='Move over the plan for seat / X-Y details';host.appendChild(fixed);
+ const cross=document.createElement('div');cross.id='rahHoverMark';cross.style.cssText='display:none;position:absolute;width:12px;height:12px;margin:-6px;border-radius:50%;border:2px solid #00a7ff;background:rgba(255,255,255,.8);pointer-events:none;z-index:20';host.appendChild(cross);
  img.addEventListener('mousemove',ev=>{
-   const q=pct(ev,img),n=nearest(q.x,q.y);
-   read.style.display='block';read.style.left=(ev.clientX+14)+'px';read.style.top=(ev.clientY+14)+'px';
-   read.textContent=n&&n.distance<4.0?fmt(n):'X '+q.x.toFixed(1)+'% · Y '+q.y.toFixed(1)+'% · no nearby mapped seat';
-   if(n&&n.distance<4.0){cross.style.display='block';cross.style.left=n.x+'%';cross.style.top=n.y+'%';}else cross.style.display='none';
+   const q=pct(ev,img),n=nearest(q.x,q.y),near=n&&n.distance<5.0;
+   const text=near?fmt(n):'X '+q.x.toFixed(1)+'% · Y '+q.y.toFixed(1)+'% · no nearby mapped seat';
+   read.style.display='block';read.style.left=(ev.clientX+14)+'px';read.style.top=(ev.clientY+14)+'px';read.textContent=text;fixed.textContent=text;
+   if(near){cross.style.display='block';cross.style.left=n.x+'%';cross.style.top=n.y+'%';}else cross.style.display='none';
  });
- img.addEventListener('mouseleave',()=>{read.style.display='none';cross.style.display='none';});
+ img.addEventListener('mouseleave',()=>{read.style.display='none';cross.style.display='none';fixed.textContent='Move over the plan for seat / X-Y details';});
 }
 
 const observer=new MutationObserver(install);observer.observe(document.documentElement,{subtree:true,childList:true});
