@@ -3,61 +3,38 @@
 <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:2rem">Loading Proms Lister…</div>
 <script>
 (async()=>{
- const r=await fetch('./Proms-Lister-Calendar/index.html?vr=2.4',{cache:'no-store'});if(!r.ok)throw Error('Could not load Proms Lister source: '+r.status);let h=await r.text();
+ const r=await fetch('./Proms-Lister-Calendar/index.html?vr=2.5',{cache:'no-store'});if(!r.ok)throw Error('Could not load Proms Lister source: '+r.status);let h=await r.text();
  h=h.replace('<head>','<head><base href="/Proms-Lister/">');
  const old='<button class="btn" id="attachPdf">Attach Ticket</button><button class="btn" id="openPdf">Open Ticket</button><button class="btn danger" id="removeTicket">Remove ticket</button>';
  const neu='<button class="btn" id="attachPdf">Attach Ticket</button><button class="btn" id="refreshTicket">Refresh Ticket Details</button><button class="btn" id="openPdf">Open Ticket</button><button class="btn danger" id="removeTicket">Remove ticket</button><button class="btn" id="closeTicketView">Close</button>';
- if(!h.includes(old))throw Error('Ticket action controls not found in source');h=h.replace(old,neu);
+ if(h.includes(old))h=h.replace(old,neu);
  const bind="$('attachPdf').onclick=()=>{window.attachTarget=c;$('pdfPick').click()};$('openPdf').onclick=()=>openPdf(c);";
  const bind2="$('attachPdf').onclick=()=>{window.attachTarget=c;$('pdfPick').click()};$('refreshTicket').onclick=()=>refreshTicketDetails(c);$('openPdf').onclick=()=>openPdf(c);$('closeTicketView').onclick=closeSheet;";
- if(!h.includes(bind))throw Error('Ticket button bindings not found in source');h=h.replace(bind,bind2);
+ if(h.includes(bind))h=h.replace(bind,bind2);
  const anchor='function closeSheet(){$(\'backdrop\').classList.remove(\'open\');$(\'sheet\').classList.remove(\'open\')}';
  const patch=`
-function ticketPageScore(c,page){
- const text=typeof page==='string'?page:(page&&page.text)||'';
- const n=norm(text),titleWords=norm(c.title||'').split(' ').filter(w=>w.length>3);
- let score=titleWords.filter(w=>n.includes(w)).length*3;
- if(c.date&&dateFromText(text)===c.date)score+=12;
- const matched=matchConcert(text);if(matched&&keyFor(matched)===keyFor(c))score+=30;
- return score;
-}
-function bestTicketPage(c,pages,savedPage){
- const n=Number(savedPage||0);if(n>=1&&n<=pages.length)return n-1;
- let best=0,bestScore=-1;for(let i=0;i<pages.length;i++){const s=ticketPageScore(c,pages[i]);if(s>bestScore){bestScore=s;best=i}}
- return best;
-}
-async function refreshTicketDetails(c){
- const k=keyFor(c),rec=await pdfGet(k);if(!rec){alert('No loaded ticket file is available for this Prom. Attach the ticket first.');return}
- const b=$('refreshTicket');if(b){b.disabled=true;b.textContent='Refreshing…'}
- try{
-  const type=rec.blob.type||mimeForName(rec.name)||'application/octet-stream',isPdf=type==='application/pdf'||String(rec.name||'').toLowerCase().endsWith('.pdf');
-  const pages=isPdf?await pdfPages(rec.blob):[await imageText(rec.blob)],all=loadTickets(),old=all[k]||{},idx=bestTicketPage(c,pages,old.ticketPage),best=parseTicket(pages[idx]);
-  const t={...old,hasTicket:true,pdfName:old.pdfName||rec.name,fileType:old.fileType||type,ticketPage:idx+1,updatedAt:Date.now()};
-  for(const f of ['door','section','row','seat','reference'])if(best[f])t[f]=best[f];
-  if(best.notes&&!String(t.notes||'').includes(best.notes))t.notes=[t.notes,best.notes].filter(Boolean).join('\\n');
-  all[k]=t;saveTickets(all);render();openDetail(c);await writeCalendarSyncFile();
- }catch(e){console.error(e);alert('Ticket refresh failed: '+(e&&e.message?e.message:e));if(b){b.disabled=false;b.textContent='Refresh Ticket Details'}}
-}
-async function importPdfs(files){
- let ok=0,fail=[];
- for(const file of files){try{
-  const isPdf=file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf'),pages=isPdf?await pdfPages(file):[await imageText(file)],storedType=file.type||mimeForName(file.name)||'application/octet-stream';
-  if(window.attachTarget){const c=window.attachTarget,idx=bestTicketPage(c,pages,0),parsed=parseTicket(pages[idx]),all=loadTickets(),k=keyFor(c),old=all[k]||{};all[k]={...old,...parsed,hasTicket:true,pdfName:file.name,fileType:storedType,ticketPage:idx+1};saveTickets(all);await pdfPut(k,new Blob([file],{type:storedType}),file.name);ok++}
-  else for(let i=0;i<pages.length;i++){const page=pages[i],pageText=typeof page==='string'?page:(page.text||''),c=matchConcert(pageText);if(!c)continue;const parsed=parseTicket(page),all=loadTickets(),k=keyFor(c),old=all[k]||{};all[k]={...old,...parsed,hasTicket:true,pdfName:file.name,fileType:storedType,ticketPage:i+1};saveTickets(all);await pdfPut(k,new Blob([file],{type:storedType}),file.name);ok++}
-  window.attachTarget=null;
- }catch(e){console.error(e);fail.push(file.name);window.attachTarget=null}}
- render();$('importStatus').textContent=\`Imported \${ok} ticket\${ok===1?'':'s'}\${fail.length?\`; could not read: \${fail.join(', ')}\`:''}\`;if(selected)openDetail(selected);writeCalendarSyncFile();
-}
-async function openPdf(c){
- const k=keyFor(c),rec=await pdfGet(k);if(!rec){alert('No ticket is attached to this concert.');return}
- const type=rec.blob.type||mimeForName(rec.name)||'application/octet-stream',blob=new Blob([rec.blob],{type}),u=URL.createObjectURL(blob),t=ticketFor(c);
- if(type!=='application/pdf'&&!String(rec.name||'').toLowerCase().endsWith('.pdf')){window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),120000);return}
- let page=Number(t.ticketPage||0);
- if(!page){try{const pages=await pdfPages(rec.blob),all=loadTickets(),idx=bestTicketPage(c,pages,0);page=idx+1;all[k]={...t,ticketPage:page,updatedAt:Date.now()};saveTickets(all)}catch(e){console.warn('Could not determine ticket page',e);page=1}}
- const w=window.open(u+'#page='+page+'&zoom=page-width','_blank');if(!w)alert('Please allow pop-ups so the ticket can be displayed.');setTimeout(()=>URL.revokeObjectURL(u),300000);
-}
+function ticketPageScore(c,page){const text=typeof page==='string'?page:(page&&page.text)||'',n=norm(text),words=norm(c.title||'').split(' ').filter(w=>w.length>3);let s=words.filter(w=>n.includes(w)).length*3;if(c.date&&dateFromText(text)===c.date)s+=12;const m=matchConcert(text);if(m&&keyFor(m)===keyFor(c))s+=30;return s}
+function bestTicketPage(c,pages,saved){const n=Number(saved||0);if(n>=1&&n<=pages.length)return n-1;let b=0,bs=-1;for(let i=0;i<pages.length;i++){const s=ticketPageScore(c,pages[i]);if(s>bs){bs=s;b=i}}return b}
+async function refreshTicketDetails(c){const k=keyFor(c),rec=await pdfGet(k);if(!rec){alert('No loaded ticket file is available for this Prom.');return}try{const type=rec.blob.type||mimeForName(rec.name)||'application/octet-stream',pages=(type==='application/pdf'||String(rec.name||'').toLowerCase().endsWith('.pdf'))?await pdfPages(rec.blob):[await imageText(rec.blob)],all=loadTickets(),old=all[k]||{},idx=bestTicketPage(c,pages,old.ticketPage),best=parseTicket(pages[idx]),t={...old,hasTicket:true,pdfName:old.pdfName||rec.name,fileType:old.fileType||type,ticketPage:idx+1,updatedAt:Date.now()};for(const f of ['door','section','row','seat','reference'])if(best[f])t[f]=best[f];all[k]=t;saveTickets(all);render();openDetail(c);await writeCalendarSyncFile()}catch(e){alert('Ticket refresh failed: '+(e.message||e))}}
+async function importPdfs(files){let ok=0,fail=[];for(const file of files){try{const isPdf=file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf'),pages=isPdf?await pdfPages(file):[await imageText(file)],storedType=file.type||mimeForName(file.name)||'application/octet-stream';if(window.attachTarget){const c=window.attachTarget,idx=bestTicketPage(c,pages,0),parsed=parseTicket(pages[idx]),all=loadTickets(),k=keyFor(c),old=all[k]||{};all[k]={...old,...parsed,hasTicket:true,pdfName:file.name,fileType:storedType,ticketPage:idx+1};saveTickets(all);await pdfPut(k,new Blob([file],{type:storedType}),file.name);ok++}else for(let i=0;i<pages.length;i++){const page=pages[i],txt=typeof page==='string'?page:(page.text||''),c=matchConcert(txt);if(!c)continue;const parsed=parseTicket(page),all=loadTickets(),k=keyFor(c),old=all[k]||{};all[k]={...old,...parsed,hasTicket:true,pdfName:file.name,fileType:storedType,ticketPage:i+1};saveTickets(all);await pdfPut(k,new Blob([file],{type:storedType}),file.name);ok++}window.attachTarget=null}catch(e){fail.push(file.name);window.attachTarget=null}}render();$('importStatus').textContent=\`Imported \${ok} ticket\${ok===1?'':'s'}\`;if(selected)openDetail(selected);writeCalendarSyncFile()}
+async function openPdf(c){const k=keyFor(c),rec=await pdfGet(k);if(!rec){alert('No ticket is attached to this concert.');return}const type=rec.blob.type||mimeForName(rec.name)||'application/octet-stream',blob=new Blob([rec.blob],{type}),u=URL.createObjectURL(blob),t=ticketFor(c);if(type!=='application/pdf'&&!String(rec.name||'').toLowerCase().endsWith('.pdf')){window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),120000);return}let page=Number(t.ticketPage||0);if(!page){try{const pages=await pdfPages(rec.blob),all=loadTickets(),idx=bestTicketPage(c,pages,0);page=idx+1;all[k]={...t,ticketPage:page};saveTickets(all)}catch(e){page=1}}window.open(u+'#page='+page+'&zoom=page-width','_blank');setTimeout(()=>URL.revokeObjectURL(u),300000)}
 `;
- if(!h.includes(anchor))throw Error('Close-sheet anchor not found in source');h=h.replace(anchor,patch+anchor);
+ if(h.includes(anchor))h=h.replace(anchor,patch+anchor);
+ const ui=`<script>
+(function(){
+ const IMG='rah-seating-plan.jpg';
+ function removeOld(){document.querySelectorAll('button,a').forEach(e=>{const x=(e.textContent||'').trim().toLowerCase();if(x==='try standing'||x==='go early')e.remove()})}
+ function shiftDay(delta){const f=document.getElementById('from'),t=document.getElementById('to');let base=f&&f.value?new Date(f.value+'T12:00:00'):new Date();base.setDate(base.getDate()+delta);const v=base.toISOString().slice(0,10);if(f)f.value=v;if(t)t.value=v;if(typeof render==='function')render()}
+ function addDayButtons(){const p=document.getElementById('listPage');if(!p||document.getElementById('dayNav'))return;const d=document.createElement('div');d.id='dayNav';d.style='display:flex;gap:8px;margin:8px 0 14px';d.innerHTML='<button class="btn" id="dayDown">◀ Day down</button><button class="btn" id="dayUp">Day up ▶</button>';const target=p.querySelector('.toolbar,.filters,.topbar')||p.firstElementChild;p.insertBefore(d,target?target.nextSibling:p.firstChild);d.querySelector('#dayDown').onclick=()=>shiftDay(-1);d.querySelector('#dayUp').onclick=()=>shiftDay(1)}
+ function marker(ticket){const s=String(ticket&& (ticket.section||ticket.area)||'').toUpperCase().replace('STALLS','').trim();const map={G:[31,35],H:[31,51],J:[37,70],K:[50,76],L:[63,70],M:[69,51],O:[69,35],P:[16,37],Q:[12,51],R:[17,67],S:[28,82],T:[42,89],U:[58,89],V:[72,82],W:[83,67],X:[88,51],Y:[84,37]};return map[s]||null}
+ function showPlan(c){let m=document.getElementById('rahPlanModal');if(!m){m=document.createElement('div');m.id='rahPlanModal';m.style='position:fixed;inset:0;background:#222e;z-index:99999;display:flex;flex-direction:column';m.innerHTML='<div style="background:white;padding:8px;display:flex;gap:8px;align-items:center"><strong style="flex:1">Royal Albert Hall seating plan</strong><button id="zp">＋</button><button id="zm">−</button><button id="zr">Reset</button><button id="pc">Close</button></div><div id="pv" style="flex:1;overflow:auto;text-align:center;position:relative"><div id="pi" style="position:relative;display:inline-block;transform-origin:top left"><img id="rahImg" src="'+IMG+'" style="display:block;max-width:none;width:900px"><div id="seatMark" style="display:none;position:absolute;width:22px;height:22px;margin:-11px;border-radius:50%;background:#e4002b;border:3px solid white;box-shadow:0 0 0 2px #e4002b"></div></div></div><div id="seatLabel" style="background:white;padding:8px;text-align:center"></div>';document.body.appendChild(m);let z=1;const apply=()=>m.querySelector('#pi').style.transform='scale('+z+')';m.querySelector('#zp').onclick=()=>{z=Math.min(4,z+.25);apply()};m.querySelector('#zm').onclick=()=>{z=Math.max(.5,z-.25);apply()};m.querySelector('#zr').onclick=()=>{z=1;apply()};m.querySelector('#pc').onclick=()=>m.style.display='none';m.querySelector('#pv').addEventListener('wheel',e=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();z=Math.max(.5,Math.min(4,z+(e.deltaY<0?.15:-.15)));apply()},{passive:false})}m.style.display='flex';const ticket=c&&typeof ticketFor==='function'?ticketFor(c):{};const pt=marker(ticket),mark=m.querySelector('#seatMark');if(pt){mark.style.display='block';mark.style.left=pt[0]+'%';mark.style.top=pt[1]+'%'}else mark.style.display='none';m.querySelector('#seatLabel').textContent=[ticket.door&&'Door '+ticket.door,ticket.section||ticket.area,ticket.row&&'Row '+ticket.row,ticket.seat&&'Seat '+ticket.seat].filter(Boolean).join(' · ')||'Select a Prom with seat details to mark its seating area.'}
+ function addHomeLink(){const p=document.getElementById('homePage');if(!p||document.getElementById('homeSeatPlan'))return;const b=document.createElement('button');b.id='homeSeatPlan';b.className='btn';b.textContent='RAH interactive seating plan';b.style='margin:12px';b.onclick=()=>showPlan(window.selected||null);p.appendChild(b)}
+ function replacePlanLinks(){document.querySelectorAll('a,button').forEach(e=>{if(/rah seating plan|seating plan/i.test((e.textContent||'').trim())&&!e.dataset.rah){e.dataset.rah='1';e.removeAttribute('href');e.onclick=ev=>{ev.preventDefault();showPlan(window.selected||null)}}})}
+ const mo=new MutationObserver(()=>{removeOld();addDayButtons();addHomeLink();replacePlanLinks()});mo.observe(document.documentElement,{subtree:true,childList:true});setTimeout(()=>{removeOld();addDayButtons();addHomeLink();replacePlanLinks()},200);
+ window.showRAHPlan=showPlan;
+})();
+<\/script>`;
+ h=h.replace('</body>',ui+'</body>');
  document.open();document.write(h);document.close();
 })().catch(e=>{document.body.innerHTML='<pre style="white-space:pre-wrap;padding:1rem;color:#9c2f2f">Proms Lister failed to load: '+String(e&&e.message?e.message:e)+'</pre>'});
 </script></body></html>
