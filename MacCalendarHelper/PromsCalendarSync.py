@@ -1,20 +1,31 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 import json
+import re
+import shutil
 import subprocess
 import sys
+import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
 CALENDAR_NAME = "Proms"
 SYNC_FILENAME = "PromsCalendarSync.json"
+SYNC_ZIPNAME = "PromsCalendarSync.zip"
 DURATION_HOURS = 3
+ICLOUD = Path.home() / "Library/Mobile Documents/com~apple~CloudDocs"
 CANDIDATES = [
-    Path.home() / "Library/Mobile Documents/com~apple~CloudDocs/Proms" / SYNC_FILENAME,
-    Path.home() / "Library/Mobile Documents/com~apple~CloudDocs" / SYNC_FILENAME,
+    ICLOUD / "Proms" / SYNC_FILENAME,
+    ICLOUD / SYNC_FILENAME,
     Path.home() / "Downloads" / SYNC_FILENAME,
     Path.home() / "Documents" / SYNC_FILENAME,
 ]
+ZIP_CANDIDATES = [
+    ICLOUD / "Proms" / SYNC_ZIPNAME,
+    ICLOUD / SYNC_ZIPNAME,
+    Path.home() / "Downloads" / SYNC_ZIPNAME,
+]
+SAFARI_IMPORT_DIR = Path.home() / "Library/Application Support/PromsCalendarSync/SafariImport"
 MONTHS = ["January","February","March","April","May","June",
           "July","August","September","October","November","December"]
 
@@ -27,11 +38,63 @@ def osa(script):
         raise RuntimeError(p.stderr.strip() or "AppleScript failed")
     return p.stdout.strip()
 
+def safe_extract_zip(zip_path: Path) -> Path:
+    """Extract a Safari-exported sync ZIP to a private helper folder.
+
+    Path traversal is rejected.  A small marker avoids doing the same extraction
+    every five minutes when the ZIP has not changed.
+    """
+    SAFARI_IMPORT_DIR.mkdir(parents=True, exist_ok=True)
+    marker = SAFARI_IMPORT_DIR / ".source_mtime_ns"
+    stamp = str(zip_path.stat().st_mtime_ns)
+    if marker.exists() and marker.read_text(errors="ignore").strip() == stamp:
+        candidate = SAFARI_IMPORT_DIR / SYNC_FILENAME
+        if candidate.exists():
+            return candidate
+
+    for child in SAFARI_IMPORT_DIR.iterdir():
+        if child.name == ".source_mtime_ns":
+            continue
+        if child.is_dir():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
+
+    root = SAFARI_IMPORT_DIR.resolve()
+    with zipfile.ZipFile(zip_path) as zf:
+        for member in zf.infolist():
+            target = (SAFARI_IMPORT_DIR / member.filename).resolve()
+            if root != target and root not in target.parents:
+                raise RuntimeError(f"Unsafe path in {zip_path.name}: {member.filename}")
+        zf.extractall(SAFARI_IMPORT_DIR)
+    marker.write_text(stamp)
+    candidate = SAFARI_IMPORT_DIR / SYNC_FILENAME
+    if not candidate.exists():
+        raise FileNotFoundError(f"{SYNC_FILENAME} missing from {zip_path}")
+    return candidate
+
 def find_file():
+    """Return the newest available sync source.
+
+    Normal Chrome/File-System-Access exports are plain JSON. Safari exports are
+    ZIP packages containing the JSON plus ticket PDFs. The newest source wins.
+    """
+    sources = []
     for path in CANDIDATES:
         if path.exists():
-            return path
-    raise FileNotFoundError("PromsCalendarSync.json not found. Connect Mac Calendar in the app and save it in iCloud Drive/Proms.")
+            sources.append((path.stat().st_mtime_ns, path, f"JSON {path}"))
+    for path in ZIP_CANDIDATES:
+        if path.exists():
+            extracted = safe_extract_zip(path)
+            sources.append((path.stat().st_mtime_ns, extracted, f"Safari ZIP {path}"))
+    if not sources:
+        raise FileNotFoundError(
+            "PromsCalendarSync.json or PromsCalendarSync.zip not found. "
+            "In Chrome connect the iCloud Drive/Proms folder; in Safari use Calendar export / Safari."
+        )
+    _, result, label = max(sources, key=lambda x: x[0])
+    print(f"Using {label}")
+    return result
 
 def ensure_calendar():
     script = 'tell application "Calendar"\n'
@@ -83,85 +146,30 @@ def date_lines(name, dt):
         f"set seconds of {name} to 0",
     ])
 
+def parse_time(t):
+    if not t:
+        return (19, 30)
+    t = str(t).lower().split("–")[0].split("-")[0].replace("c", "").replace(".", ":")
+    m = re.search(r'(\d{1,2})(?::(\d{2}))?\s*pm', t)
+    if m:
+        h = int(m.group(1))
+        if h < 12:
+            h += 12
+        return (h, int(m.group(2) or 0))
+    m = re.search(r'(\d{1,2})(?::(\d{2}))?\s*am', t)
+    if m:
+        h = int(m.group(1))
+        if h == 12:
+            h = 0
+        return (h, int(m.group(2) or 0))
+    m = re.search(r'(\d{1,2}):(\d{2})', t)
+    if m:
+        return (int(m.group(1)), int(m.group(2)))
+    return (19, 30)
+
 def upsert(record, sync_path):
-    import re
-    
-    def parse_time(t):
-        
-        if not t:
-            
-            return (19,30)
-        
-        t = str(t).lower()
-        
-        # 7pm–9pm
-        
-        t = t.split("–")[0]
-        
-        t = t.split("-")[0]
-        
-        t = t.replace("c","")
-        
-        t = t.replace(".",":")
-        
-        m = re.search(
-            
-            r'(\d{1,2})(?::(\d{2}))?\s*pm',
-            
-            t
-            
-        )
-        
-        if m:
-            
-            h = int(m.group(1))
-            
-            if h < 12:
-                
-                h += 12
-                
-            mins = int(m.group(2) or 0)
-            
-            return (h, mins)
-        
-        m = re.search(
-            
-            r'(\d{1,2}):(\d{2})',
-            
-            t
-            
-        )
-        
-        if m:
-            
-            return (
-        
-                int(m.group(1)),
-        
-                int(m.group(2))
-        
-            )
-        
-        return (19,30)
-    
-    hour, minute = parse_time(
-        
-        record.get("time")
-        
-    )
-    
-    start = datetime.fromisoformat(
-        
-        record["date"]
-        
-    ).replace(
-        
-        hour=hour,
-        
-        minute=minute
-        
-    )
-    
+    hour, minute = parse_time(record.get("time"))
+    start = datetime.fromisoformat(record["date"]).replace(hour=hour, minute=minute)
     end = start + timedelta(hours=DURATION_HOURS)
     marker = f"PROMS-LISTER-ID:{record['id']}"
     number = record.get("promNumber")
@@ -216,4 +224,3 @@ if __name__ == "__main__":
     except Exception as exc:
         print(f"Proms Calendar Sync failed: {exc}", file=sys.stderr)
         raise SystemExit(1)
-        
