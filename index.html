@@ -21,63 +21,16 @@ async function importPdfs(files){let ok=0,fail=[];for(const file of files){try{c
 async function openPdf(c){const k=keyFor(c),rec=await pdfGet(k);if(!rec){alert('No ticket is attached to this concert.');return}const type=rec.blob.type||mimeForName(rec.name)||'application/octet-stream',blob=new Blob([rec.blob],{type}),u=URL.createObjectURL(blob),t=ticketFor(c);if(type!=='application/pdf'&&!String(rec.name||'').toLowerCase().endsWith('.pdf')){window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),120000);return}let page=Number(t.ticketPage||0);if(!page){try{const pages=await pdfPages(rec.blob),all=loadTickets(),idx=bestTicketPage(c,pages,0);page=idx+1;all[k]={...t,ticketPage:page};saveTickets(all)}catch(e){page=1}}window.open(u+'#page='+page+'&zoom=page-width','_blank');setTimeout(()=>URL.revokeObjectURL(u),300000)}
 `;
  if(h.includes(anchor))h=h.replace(anchor,patch+anchor);
- const ui=`<script>
+ const ui=`<script src="/Proms-Lister/rah-seating-plan.js?v=20260808F"><\/script><script>
 (function(){
- const IMG='/Proms-Lister/rah-seating-plan.jpg';
  function removeOld(){document.querySelectorAll('button,a').forEach(e=>{const x=(e.textContent||'').trim().toLowerCase();if(x==='try standing'||x==='go early')e.remove()})}
  function shiftDay(delta){const f=document.getElementById('from'),t=document.getElementById('to');let base=f&&f.value?new Date(f.value+'T12:00:00'):new Date();base.setDate(base.getDate()+delta);const v=base.toISOString().slice(0,10);if(f)f.value=v;if(t)t.value=v;if(typeof render==='function')render()}
  function addDayButtons(){const p=document.getElementById('listPage');if(!p||document.getElementById('dayNav'))return;const d=document.createElement('div');d.id='dayNav';d.style='display:flex;gap:8px;margin:8px 14px 14px';d.innerHTML='<button class="btn" id="dayDown">◀ Day down</button><button class="btn" id="dayUp">Day up ▶</button>';const head=p.querySelector('.page-head');if(head&&head.parentNode)head.parentNode.insertBefore(d,head.nextSibling);else p.insertBefore(d,p.firstChild);d.querySelector('#dayDown').onclick=()=>shiftDay(-1);d.querySelector('#dayUp').onclick=()=>shiftDay(1)}
-
- /* Lookup coordinates are percentages of the supplied seating-plan JPEG.  These are hand-read from the printed plan, not section-centre placeholders. */
- const SEAT_LOOKUP={
-   /* Stalls O, row 1: readable anchors down the first radial row. */
-   'O|1|114':{x:61.8,y:36.8,kind:'mapped'},
-   'O|1|112':{x:62.0,y:38.3,kind:'mapped'},
-   'O|1|110':{x:62.2,y:39.8,kind:'mapped'},
-   'O|1|108':{x:62.5,y:41.3,kind:'mapped'},
-   'O|1|106':{x:62.8,y:43.0,kind:'mapped'},
-   'O|1|105':{x:63.0,y:44.6,kind:'mapped'},
-   'O|1|104':{x:63.1,y:45.3,kind:'mapped'},
-   'O|1|103':{x:63.2,y:46.1,kind:'mapped'},
-   'O|1|102':{x:63.3,y:46.9,kind:'mapped'},
-   'O|1|101':{x:63.4,y:47.7,kind:'mapped'},
-   'O|1|100':{x:63.5,y:48.5,kind:'mapped'},
-   'O|1|99': {x:63.6,y:49.3,kind:'mapped'},
-   'O|1|98': {x:63.7,y:50.1,kind:'mapped'}
- };
- const STALLS={
-   G:{cx:36.5,cy:36.5,angle:152,rowStep:1.15,seatStep:.50,seatBase:1},
-   H:{cx:31.0,cy:51.0,angle:176,rowStep:1.05,seatStep:.46,seatBase:31},
-   J:{cx:37.0,cy:68.0,angle:208,rowStep:.95,seatStep:.44,seatBase:45},
-   K:{cx:49.3,cy:74.0,angle:180,rowStep:.90,seatStep:.42,seatBase:56},
-   L:{cx:62.5,cy:68.0,angle:-28,rowStep:.95,seatStep:.44,seatBase:68},
-   M:{cx:69.2,cy:51.0,angle:4,rowStep:1.05,seatStep:.46,seatBase:88},
-   O:{cx:63.0,cy:44.6,angle:-82,rowStep:1.18,seatStep:.78,seatBase:105}
- };
- function cleanSection(v){return String(v||'').toUpperCase().replace(/STALLS|SECTION|ARENA/g,'').replace(/[^A-Z]/g,'').trim()}
- function num(v){const m=String(v==null?'':v).match(/\\d+/);return m?Number(m[0]):NaN}
- function interpLookup(section,row,seat){
-   const pts=Object.entries(SEAT_LOOKUP).map(([k,v])=>{const [s,r,n]=k.split('|');return{s,r:Number(r),seat:Number(n),...v}}).filter(p=>p.s===section&&p.r===row).sort((a,b)=>a.seat-b.seat);
-   if(pts.length<2)return null;
-   for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i];if(seat>=a.seat&&seat<=b.seat){const q=(seat-a.seat)/(b.seat-a.seat||1);return{x:a.x+(b.x-a.x)*q,y:a.y+(b.y-a.y)*q,kind:'interpolated',section,row,seat}}}
-   return null;
- }
- function marker(ticket){
-   const s=cleanSection(ticket&&(ticket.section||ticket.area)),row=num(ticket&&ticket.row),seat=num(ticket&&ticket.seat),key=s+'|'+row+'|'+seat;
-   if(SEAT_LOOKUP[key])return {...SEAT_LOOKUP[key],section:s,row,seat};
-   const between=interpLookup(s,row,seat);if(between)return between;
-   const g=STALLS[s];if(!g||!Number.isFinite(row)||!Number.isFinite(seat))return null;
-   const rad=g.angle*Math.PI/180,along=(seat-g.seatBase)*g.seatStep,depth=(row-1)*g.rowStep;
-   const x=g.cx+along*Math.cos(rad)-depth*Math.sin(rad),y=g.cy+along*Math.sin(rad)+depth*Math.cos(rad);
-   if(x<8||x>92||y<25||y>90)return null;
-   return{x,y,kind:'estimated',section:s,row,seat};
- }
- function showPlan(c){let m=document.getElementById('rahPlanModal');if(!m){m=document.createElement('div');m.id='rahPlanModal';m.style='position:fixed;inset:0;background:#222e;z-index:99999;display:flex;flex-direction:column';m.innerHTML='<div style="background:white;padding:8px;display:flex;gap:8px;align-items:center"><strong style="flex:1">Royal Albert Hall seating plan</strong><button id="zp">＋</button><button id="zm">−</button><button id="zr">Reset</button><button id="pc">Close</button></div><div id="pv" style="flex:1;overflow:auto;text-align:center;position:relative"><div id="pi" style="position:relative;display:inline-block;transform-origin:top left"><img id="rahImg" src="'+IMG+'?v=seatmap28" style="display:block;max-width:none;width:900px"><div id="seatMark" style="display:none;position:absolute;width:16px;height:16px;margin:-8px;border-radius:50%;background:#e4002b;border:3px solid white;box-shadow:0 0 0 2px #e4002b,0 2px 8px #0008"></div></div></div><div id="seatLabel" style="background:white;padding:8px;text-align:center"></div>';document.body.appendChild(m);m._z=1;const apply=()=>m.querySelector('#pi').style.transform='scale('+m._z+')';m.querySelector('#zp').onclick=()=>{m._z=Math.min(6,m._z+.25);apply()};m.querySelector('#zm').onclick=()=>{m._z=Math.max(.5,m._z-.25);apply()};m.querySelector('#zr').onclick=()=>{m._z=1;apply()};m.querySelector('#pc').onclick=()=>m.style.display='none';m.querySelector('#pv').addEventListener('wheel',e=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();m._z=Math.max(.5,Math.min(6,m._z+(e.deltaY<0?.15:-.15)));apply()},{passive:false});m.querySelector('#rahImg').onerror=()=>{m.querySelector('#seatLabel').textContent='Seating plan image could not be loaded.'}}m.style.display='flex';const ticket=c&&typeof ticketFor==='function'?ticketFor(c):{};const pt=marker(ticket),mark=m.querySelector('#seatMark'),label=m.querySelector('#seatLabel');if(pt){mark.style.display='block';mark.style.left=pt.x+'%';mark.style.top=pt.y+'%';m._z=3;m.querySelector('#pi').style.transform='scale('+m._z+')';const img=m.querySelector('#rahImg'),pv=m.querySelector('#pv');setTimeout(()=>{const iw=img.clientWidth*m._z,ih=img.clientHeight*m._z;pv.scrollLeft=Math.max(0,iw*pt.x/100-pv.clientWidth/2);pv.scrollTop=Math.max(0,ih*pt.y/100-pv.clientHeight/2)},100);const mode=pt.kind==='mapped'?'mapped from readable seat number':pt.kind==='interpolated'?'interpolated between mapped seats':'estimated from section geometry';label.textContent=[ticket.door&&'Door '+ticket.door,ticket.section||ticket.area,ticket.row&&'Row '+ticket.row,ticket.seat&&'Seat '+ticket.seat].filter(Boolean).join(' · ')+' — '+mode+' ('+pt.x.toFixed(1)+'%, '+pt.y.toFixed(1)+'%)'}else{mark.style.display='none';m._z=1;m.querySelector('#pi').style.transform='scale(1)';label.textContent=[ticket.door&&'Door '+ticket.door,ticket.section||ticket.area,ticket.row&&'Row '+ticket.row,ticket.seat&&'Seat '+ticket.seat].filter(Boolean).join(' · ')+' — seat position not yet mapped.'}}
- function addHomeLink(){const menu=document.querySelector('#homePage .home-menu'),p=document.getElementById('homePage');if((!menu&&!p)||document.getElementById('homeSeatPlan'))return;const b=document.createElement('button');b.id='homeSeatPlan';b.className=menu?'home-button':'btn';b.type='button';b.innerHTML='RAH interactive seating plan<small>Zoom the Royal Albert Hall plan and show the selected ticket seat</small>';b.onclick=e=>{e.preventDefault();e.stopPropagation();showPlan(typeof selected!=='undefined'?selected:null)};(menu||p).appendChild(b)}
- function wirePlanControls(){const b=document.getElementById('rahTicketPlan');if(b){b.type='button';b.onclick=e=>{e.preventDefault();e.stopPropagation();showPlan(typeof selected!=='undefined'?selected:null)}}}
- document.addEventListener('click',e=>{const el=e.target&&e.target.closest?e.target.closest('a,button'):null;if(!el)return;const txt=(el.textContent||'').trim();if(/^(RAH seating plan|RAH interactive seating plan)/i.test(txt)){e.preventDefault();e.stopImmediatePropagation();showPlan(typeof selected!=='undefined'?selected:null)}},true);
+ function showPlan(){let m=document.getElementById('rahPlanModal');if(!m){m=document.createElement('div');m.id='rahPlanModal';m.style='position:fixed;inset:0;background:#222e;z-index:99999;display:flex;flex-direction:column';m.innerHTML='<div style="background:white;padding:8px;display:flex;gap:8px;align-items:center"><strong style="flex:1">Royal Albert Hall seating plan</strong><button id="zp">＋</button><button id="zm">−</button><button id="zr">Reset</button><button id="pc">Close</button></div><div id="pv" style="flex:1;overflow:auto;text-align:center;position:relative"><div id="pi" style="position:relative;display:inline-block;transform-origin:top left"><img id="rahImg" src="/Proms-Lister/rah-seating-plan2.jpeg?v=20260808F" width="1346" height="1536" style="display:block;max-width:none;width:1346px;height:1536px"></div></div><div id="seatLabel" style="background:white;padding:8px;text-align:center"></div>';document.body.appendChild(m);m._z=1;const apply=()=>m.querySelector('#pi').style.transform='scale('+m._z+')';m.querySelector('#zp').onclick=()=>{m._z=Math.min(6,m._z+.25);apply()};m.querySelector('#zm').onclick=()=>{m._z=Math.max(.25,m._z-.25);apply()};m.querySelector('#zr').onclick=()=>{m._z=1;apply()};m.querySelector('#pc').onclick=()=>m.style.display='none';m.querySelector('#pv').addEventListener('wheel',e=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();m._z=Math.max(.25,Math.min(6,m._z+(e.deltaY<0?.15:-.15)));apply()},{passive:false})}m.style.display='flex';setTimeout(()=>{if(window.RAHSeatMap){window.RAHSeatMap.install();window.RAHSeatMap.renderMarker()}},0)}
+ function addHomeLink(){const menu=document.querySelector('#homePage .home-menu'),p=document.getElementById('homePage');if((!menu&&!p)||document.getElementById('homeSeatPlan'))return;const b=document.createElement('button');b.id='homeSeatPlan';b.className=menu?'home-button':'btn';b.type='button';b.innerHTML='RAH interactive seating plan<small>Zoom the Royal Albert Hall plan and show the selected ticket seat</small>';b.onclick=e=>{e.preventDefault();e.stopPropagation();showPlan()};(menu||p).appendChild(b)}
+ function wirePlanControls(){const b=document.getElementById('rahTicketPlan');if(b){b.type='button';b.onclick=e=>{e.preventDefault();e.stopPropagation();showPlan()}}}
  const mo=new MutationObserver(()=>{removeOld();addDayButtons();addHomeLink();wirePlanControls()});mo.observe(document.documentElement,{subtree:true,childList:true});setTimeout(()=>{removeOld();addDayButtons();addHomeLink();wirePlanControls()},100);
- window.showRAHPlan=showPlan;window.RAH_SEAT_LOOKUP=SEAT_LOOKUP;
+ window.showRAHPlan=showPlan;
 })();
 <\/script>`;
  h=h.replace('</body>',ui+'</body>');
