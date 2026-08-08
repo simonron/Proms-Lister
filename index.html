@@ -1,18 +1,13 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Proms Lister 2026</title></head><body>
-<div id="loading" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:2rem">Loading Proms Lister…</div>
-<script>
-(async()=>{
-  try{
-    const r=await fetch('./Proms-Lister-Calendar/index.html?v=2.0.4',{cache:'no-store'});
-    if(!r.ok) throw new Error('Could not load Lister: '+r.status);
-    let h=await r.text();
-    h=h.replace("fetch('data.json')","fetch('/Proms-Lister/data.json')");
-    document.open();
-    document.write(h);
-    document.close();
-  }catch(e){
-    document.body.innerHTML='<pre style="white-space:pre-wrap;padding:1rem;color:#9c2f2f">Proms Lister failed to load: '+String(e&&e.message?e.message:e)+'</pre>';
-  }
-})();
-</script></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Proms Lister 2026</title>
+<meta http-equiv="refresh" content="0; url=./Proms-Lister-Calendar/index.html?v=2.0.5">
+<script>location.replace('./Proms-Lister-Calendar/index.html?v=2.0.5');</script>
+</head>
+<body>
+<p>Loading Proms Lister… <a href="./Proms-Lister-Calendar/index.html?v=2.0.5">Open Proms Lister</a></p>
+</body>
+</html>
