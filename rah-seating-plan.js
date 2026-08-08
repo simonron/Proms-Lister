@@ -1,76 +1,30 @@
-/* Royal Albert Hall seat map — image-grounded lookup.
-   This deliberately removes the previous whole-section quadrilateral estimates, which
-   were too inaccurate.  Only seats whose positions can be grounded in the supplied
-   seating-plan image are exposed to hover/marker logic.  No timers or observers. */
+/* Royal Albert Hall seat map — image-grounded lookup + user corrections.
+   No timers/observers. User corrections override built-in coordinates and persist locally. */
 (function(){
 'use strict';
-
-/* Percent coordinates measured from the uploaded 1149 x 1536 JPEG.
-   Stalls O / Row 7 is readable enough to establish the printed seat run around 141.
-   The cells below follow that physical row on the scan; 141 itself is the calibrated
-   anchor and neighbouring printed cells are spaced from the same row geometry. */
+const STORE='rahUserSeatCorrectionsV3';
 const LOOKUP={};
-(function(){
-  const seats=[109,113,117,121,125,129,133,137,141,145,149,153];
-  const anchorSeat=141, anchorX=68.755, anchorY=37.956;
-  const dxPerCell=-0.104, dyPerCell=-0.814; // increasing seat number moves inward/up the printed row
-  for(const seat of seats){
-    const cells=(seat-anchorSeat)/4;
-    LOOKUP['O|7|'+seat]={x:anchorX+cells*dxPerCell,y:anchorY+cells*dyPerCell,section:'O',row:7,seat,kind:seat===141?'image anchor':'image-derived'};
-  }
-})();
-
+(function(){const seats=[109,113,117,121,125,129,133,137,141,145,149,153],anchorSeat=141,anchorX=68.755,anchorY=37.956,dx=-0.104,dy=-0.814;for(const seat of seats){const c=(seat-anchorSeat)/4;LOOKUP['O|7|'+seat]={x:anchorX+c*dx,y:anchorY+c*dy,section:'O',row:7,seat,kind:seat===141?'image anchor':'image-derived'}}})();
 function clean(v){return String(v||'').toUpperCase().replace(/STALLS|CIRCLE|SECTION|ARENA/g,'').replace(/[^A-Z]/g,'').trim()}
 function num(v){const m=String(v==null?'':v).match(/\d+/);return m?+m[0]:NaN}
-function locate(t){const s=clean(t&&(t.section||t.area)),r=num(t&&t.row),n=num(t&&t.seat);return LOOKUP[s+'|'+r+'|'+n]||null}
-const POINTS=Object.values(LOOKUP);
-function nearest(x,y){let best=null,bd=Infinity;for(const p of POINTS){const d=(p.x-x)*(p.x-x)+(p.y-y)*(p.y-y);if(d<bd){bd=d;best=p}}return best?Object.assign({},best,{distance:Math.sqrt(bd)}):null}
+function key(s,r,n){return s+'|'+r+'|'+n}
+function loadCorrections(){try{return JSON.parse(localStorage.getItem(STORE)||'{}')}catch(e){return{}}}
+function saveCorrections(c){localStorage.setItem(STORE,JSON.stringify(c))}
+function allPoints(){return Object.values(Object.assign({},LOOKUP,loadCorrections()))}
+function locate(t){const s=clean(t&&(t.section||t.area)),r=num(t&&t.row),n=num(t&&t.seat),k=key(s,r,n),c=loadCorrections()[k];return c||LOOKUP[k]||null}
+function nearest(x,y){let best=null,bd=Infinity;for(const p of allPoints()){const d=(p.x-x)*(p.x-x)+(p.y-y)*(p.y-y);if(d<bd){bd=d;best=p}}return best?Object.assign({},best,{distance:Math.sqrt(bd)}):null}
 function pct(ev,img){const r=img.getBoundingClientRect();return{x:(ev.clientX-r.left)*100/r.width,y:(ev.clientY-r.top)*100/r.height}}
-function text(p){return p?['Stalls '+p.section,'Row '+p.row,'Seat '+p.seat,p.kind].join(' · '):''}
+function seatText(p){return p?['Stalls '+p.section,'Row '+p.row,'Seat '+p.seat,p.kind].filter(Boolean).join(' · '):''}
 function currentTicket(){try{if(typeof selected!=='undefined'&&selected&&typeof ticketFor==='function')return ticketFor(selected)||{}}catch(e){}return{}}
-
-function install(){
-  const img=document.getElementById('rahImg'); if(!img)return;
-  /* Keep the uploaded scan readable.  Previous brightness/contrast values clipped the
-     fine printed numerals.  This is intentionally mild. */
-  img.style.filter='grayscale(1) brightness(1.06) contrast(1.12)';
-  img.style.cursor='crosshair';
-
-  let read=document.getElementById('rahHoverReadout');
-  if(!read){
-    read=document.createElement('div');read.id='rahHoverReadout';
-    read.style.cssText='position:fixed;display:none;z-index:100002;pointer-events:none;background:rgba(0,0,0,.9);color:white;padding:7px 10px;border-radius:6px;font:600 13px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;white-space:nowrap';
-    document.body.appendChild(read);
-  }
-
-  if(img.dataset.rahImageLookup!=='1'){
-    img.dataset.rahImageLookup='1';
-    const move=ev=>{
-      const q=pct(ev,img),p=nearest(q.x,q.y);
-      if(p&&p.distance<1.25){
-        read.textContent=text(p);read.style.display='block';
-        read.style.left=Math.max(4,Math.min(window.innerWidth-300,ev.clientX+14))+'px';
-        read.style.top=Math.max(4,Math.min(window.innerHeight-42,ev.clientY+14))+'px';
-      }else read.style.display='none';
-    };
-    img.addEventListener('mousemove',move);img.addEventListener('pointermove',move);
-    img.addEventListener('mouseleave',()=>read.style.display='none');
-  }
-
-  const t=currentTicket(),p=locate(t),mark=document.getElementById('seatMark'),label=document.getElementById('seatLabel');
-  if(p&&mark){mark.style.display='block';mark.style.left=p.x+'%';mark.style.top=p.y+'%';}
-  else if(mark)mark.style.display='none';
-  if(label){
-    const d=[t.door&&'Door '+t.door,t.section||t.area,t.row&&'Row '+t.row,t.seat&&'Seat '+t.seat].filter(Boolean).join(' · ');
-    label.textContent=p?d+' — '+p.kind:d+' — exact image position not yet mapped';
-  }
-}
-
-/* Capture phase: the bootstrap viewer stops later click propagation. */
-document.addEventListener('click',ev=>{
-  const el=ev.target&&ev.target.closest&&ev.target.closest('button,a');if(!el)return;
-  if(/^RAH (interactive )?seating plan/i.test((el.textContent||'').trim()))setTimeout(install,0);
-},true);
-
-window.RAHSeatMap={install,locate,nearest,lookup:LOOKUP};
+function parseSeat(s){const u=String(s||'').toUpperCase(),dm=u.match(/DOOR\s*[:#-]?\s*([A-Z0-9]+)/),rm=u.match(/ROW\s*[:#-]?\s*(\d+)/),sm=u.match(/SEAT\w*\s*[:#-]?\s*(\d+)/);let sec='';const xm=u.match(/(?:STALLS|SECTION|CIRCLE)\s*([A-Z]{1,2})\b/);if(xm)sec=xm[1];let nums=(u.match(/\b\d+\b/g)||[]).map(Number);let row=rm?+rm[1]:NaN,seat=sm?+sm[1]:NaN;if(!Number.isFinite(seat)&&nums.length)seat=nums[nums.length-1];if(!Number.isFinite(row)&&nums.length>1)row=nums[nums.length-2];if(!sec){const m=u.match(/\b([A-Y])\b/);if(m)sec=m[1]}return sec&&Number.isFinite(row)&&Number.isFinite(seat)?{door:dm?dm[1]:'',section:sec,row,seat}:null}
+let pending=null;
+function startCorrection(){const t=currentTicket(),def=[t.door&&'Door '+t.door,t.section||t.area,t.row&&'Row '+t.row,t.seat&&'Seat '+t.seat].filter(Boolean).join(' '),s=prompt('Which seat are you correcting?\nExample: Door 9 Stalls O Row 7 Seat 141',def);if(s===null)return;pending=parseSeat(s);if(!pending){alert('I could not identify Section, Row and Seat. Try: Stalls O Row 7 Seat 141');return}const b=document.getElementById('rahCorrectionStatus');if(b)b.textContent='Click the exact centre of '+['Door '+pending.door,'Stalls '+pending.section,'Row '+pending.row,'Seat '+pending.seat].filter(x=>!x.endsWith(' ')).join(' · ')}
+function undoCorrection(){const t=currentTicket(),k=key(clean(t.section||t.area),num(t.row),num(t.seat)),c=loadCorrections();if(c[k]){delete c[k];saveCorrections(c);install();alert('Correction removed for this ticket seat.')}else alert('This ticket seat has no user correction.')}
+function exportCorrections(){const blob=new Blob([JSON.stringify(loadCorrections(),null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='RAH-seat-corrections.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function importCorrections(){const i=document.createElement('input');i.type='file';i.accept='.json,application/json';i.onchange=()=>{const f=i.files&&i.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const x=JSON.parse(r.result);if(!x||typeof x!=='object'||Array.isArray(x))throw 0;saveCorrections(Object.assign(loadCorrections(),x));install();alert('Seat corrections imported.')}catch(e){alert('That is not a valid RAH corrections file.')}};r.readAsText(f)};i.click()}
+function addControls(host){let bar=document.getElementById('rahCorrectionBar');if(bar)return;bar=document.createElement('div');bar.id='rahCorrectionBar';bar.style.cssText='position:absolute;right:10px;top:10px;z-index:40;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end';[['Correct seat',startCorrection],['Undo',undoCorrection],['Export',exportCorrections],['Import',importCorrections]].forEach(([txt,fn])=>{const b=document.createElement('button');b.type='button';b.textContent=txt;b.style.cssText='padding:6px 9px;border-radius:6px;border:1px solid #777;background:#fff;color:#111;cursor:pointer';b.onclick=e=>{e.preventDefault();e.stopPropagation();fn()};bar.appendChild(b)});const st=document.createElement('span');st.id='rahCorrectionStatus';st.style.cssText='width:100%;text-align:right;background:rgba(255,255,255,.92);padding:4px 7px;border-radius:5px;font:12px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif';st.textContent='Corrections are saved in this browser';bar.appendChild(st);host.appendChild(bar)}
+function install(){const img=document.getElementById('rahImg'),host=document.getElementById('pi')||(img&&img.parentElement);if(!img||!host)return;img.style.filter='grayscale(1)';img.style.cursor=pending?'copy':'crosshair';addControls(host);let read=document.getElementById('rahHoverReadout');if(!read){read=document.createElement('div');read.id='rahHoverReadout';read.style.cssText='position:fixed;display:none;z-index:100002;pointer-events:none;background:rgba(0,0,0,.9);color:white;padding:7px 10px;border-radius:6px;font:600 13px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;white-space:nowrap';document.body.appendChild(read)}if(img.dataset.rahCorrection!=='1'){img.dataset.rahCorrection='1';const move=ev=>{if(pending){read.textContent='Click here to place '+seatText(Object.assign({},pending,{kind:'correction'}));read.style.display='block'}else{const q=pct(ev,img),p=nearest(q.x,q.y);if(p&&p.distance<1.25){read.textContent=seatText(p);read.style.display='block'}else read.style.display='none'}if(read.style.display==='block'){read.style.left=Math.max(4,Math.min(innerWidth-330,ev.clientX+14))+'px';read.style.top=Math.max(4,Math.min(innerHeight-42,ev.clientY+14))+'px'}};img.addEventListener('mousemove',move);img.addEventListener('pointermove',move);img.addEventListener('mouseleave',()=>{if(!pending)read.style.display='none'});img.addEventListener('click',ev=>{if(!pending)return;ev.preventDefault();ev.stopPropagation();const q=pct(ev,img),c=loadCorrections(),k=key(pending.section,pending.row,pending.seat);c[k]={x:q.x,y:q.y,door:pending.door,section:pending.section,row:pending.row,seat:pending.seat,kind:'user corrected',savedAt:new Date().toISOString()};saveCorrections(c);const done=pending;pending=null;read.style.display='none';const st=document.getElementById('rahCorrectionStatus');if(st)st.textContent='Saved: '+seatText(Object.assign({},done,{kind:'user corrected'}));install();updateMarker()})}updateMarker()}
+function updateMarker(){const t=currentTicket(),p=locate(t),m=document.getElementById('seatMark'),l=document.getElementById('seatLabel');if(p&&m){m.style.display='block';m.style.left=p.x+'%';m.style.top=p.y+'%'}else if(m)m.style.display='none';if(l){const d=[t.door&&'Door '+t.door,t.section||t.area,t.row&&'Row '+t.row,t.seat&&'Seat '+t.seat].filter(Boolean).join(' · ');l.textContent=p?d+' — '+p.kind:d+' — exact image position not yet mapped'}}
+document.addEventListener('click',ev=>{const el=ev.target&&ev.target.closest&&ev.target.closest('button,a');if(el&&/^RAH (interactive )?seating plan/i.test((el.textContent||'').trim()))setTimeout(install,0)},true);
+window.RAHSeatMap={install,locate,nearest,startCorrection,exportCorrections,importCorrections,lookup:LOOKUP};
 })();
