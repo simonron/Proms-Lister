@@ -1,4 +1,4 @@
-const CACHE = 'proms-finder-v6-history-ticket-pages';
+const CACHE = 'proms-finder-v7-select-before-seat';
 
 self.addEventListener('install', event => {
   self.skipWaiting();

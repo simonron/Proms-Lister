@@ -255,15 +255,35 @@ function ticketPageScore(c,page){
  return score;
 }
 function bestTicketPage(c,pages,savedPage){
- const n=Number(savedPage||0);if(n>=1&&n<=pages.length)return n-1;
- let best=0,bestScore=-1;for(let i=0;i<pages.length;i++){const q=ticketPageScore(c,pages[i]);if(q>bestScore){bestScore=q;best=i}}return best;
+ // IMPORTANT: identify the concert page BEFORE parsing any seat fields.
+ // Always rescore every page; savedPage is only a tie-breaker, never an override.
+ const saved=Number(savedPage||0)-1;
+ let best=0,bestScore=-Infinity;
+ for(let i=0;i<pages.length;i++){
+   const q=ticketPageScore(c,pages[i]);
+   if(q>bestScore||(q===bestScore&&i===saved)){bestScore=q;best=i}
+ }
+ return best;
+}
+async function selectTicketPage(c,blob,name,type,savedPage){
+ const pages=(type==='application/pdf'||String(name||'').toLowerCase().endsWith('.pdf'))?await pdfPages(blob):[await imageText(blob)];
+ if(!pages.length)throw Error('The ticket file contains no readable pages.');
+ const idx=bestTicketPage(c,pages,savedPage);
+ return {pages,index:idx,page:pages[idx],pageNumber:idx+1};
 }
 async function rereadStoredTicket(c){
  const k=keyFor(c),stored=await pdfGet(k);if(!stored||!stored.blob)throw Error('No attached ticket file is stored for this Prom.');
  const blob=stored.blob,name=stored.name||ticketFor(c).pdfName||'ticket.pdf',type=blob.type||mimeForName(name)||'application/octet-stream';
- const pages=(type==='application/pdf'||name.toLowerCase().endsWith('.pdf'))?await pdfPages(blob):[await imageText(blob)];
- const all=loadTickets(),old=all[k]||{},idx=bestTicketPage(c,pages,old.ticketPage),parsed=parseTicket(pages[idx]);
- all[k]={...old,...parsed,hasTicket:true,pdfName:name,fileType:type,ticketPage:idx+1,updatedAt:Date.now()};saveTickets(all);return all[k];
+ const all=loadTickets(),old=all[k]||{};
+
+ // Stage 1: choose the page belonging to THIS concert. No seat parsing occurs here.
+ const chosen=await selectTicketPage(c,blob,name,type,old.ticketPage);
+
+ // Stage 2: only now read Door / Section / Row / Seat from that selected page.
+ const parsed=parseTicket(chosen.page);
+ all[k]={...old,...parsed,hasTicket:true,pdfName:name,fileType:type,ticketPage:chosen.pageNumber,updatedAt:Date.now()};
+ saveTickets(all);
+ return all[k];
 }
 
 async function importPdfs(files){
@@ -271,7 +291,9 @@ async function importPdfs(files){
  for(const file of files){try{
   const isPdf=file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf'),pages=isPdf?await pdfPages(file):[await imageText(file)],storedType=file.type||mimeForName(file.name)||'application/octet-stream';
   if(window.attachTarget){
-   const c=window.attachTarget,idx=bestTicketPage(c,pages,0),parsed=parseTicket(pages[idx]),all=loadTickets(),k=keyFor(c),old=all[k]||{};
+   const c=window.attachTarget,idx=bestTicketPage(c,pages,0),all=loadTickets(),k=keyFor(c),old=all[k]||{};
+   // Select the concert's page first; parse seat details only from that page.
+   const parsed=parseTicket(pages[idx]);
    all[k]={...old,...parsed,hasTicket:true,pdfName:file.name,fileType:storedType,ticketPage:idx+1,updatedAt:Date.now()};saveTickets(all);await pdfPut(k,new Blob([file],{type:storedType}),file.name);ok++;
   }else for(let i=0;i<pages.length;i++){
    const page=pages[i],text=typeof page==='string'?page:(page&&page.text)||'',c=matchConcert(text);if(!c)continue;
