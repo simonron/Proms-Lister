@@ -1,13 +1,12 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Proms Lister 2026</title>
-<meta http-equiv="refresh" content="0; url=./zindex.html?v=history-reader">
-<script>location.replace('./zindex.html?v=history-reader');</script>
-</head>
-<body>
-<p>Loading Proms Lister… <a href="./zindex.html?v=history-reader">Open Proms Lister</a></p>
-</body>
-</html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Proms Lister 2026</title></head><body>
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:2rem">Loading Proms Lister…</div>
+<script>
+(async()=>{
+ const r=await fetch('./zindex.html?v=history-layout-selector-1',{cache:'no-store'});
+ if(!r.ok)throw Error('Could not load Proms Lister source: '+r.status);
+ let h=await r.text();
+ h=h.replace('</body>','<script src="./ticket-history.js?v=history-layout-selector-1"><\/script></body>');
+ document.open();document.write(h);document.close();
+})().catch(e=>{document.body.innerHTML='<pre style="white-space:pre-wrap;padding:1rem;color:#9c2f2f">Proms Lister failed to load: '+String(e&&e.message?e.message:e)+'</pre>'});
+</script></body></html>
