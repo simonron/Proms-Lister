@@ -1,4 +1,4 @@
-const CACHE = 'proms-finder-v7-select-before-seat';
+const CACHE = 'proms-finder-v7b-revert-minimal-seat-read';
 
 self.addEventListener('install', event => {
   self.skipWaiting();
