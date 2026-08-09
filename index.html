@@ -232,23 +232,45 @@ function matchConcert(text){const date=dateFromText(text),n=norm(text);let candi
 function parseTicket(text){
  const clean=String(text||'').replace(/[\u00a0\r\n]+/g,' ').replace(/\s+/g,' ').trim();
  const val=(re)=>{const m=clean.match(re);return m?(m[1]||'').trim():''};
- const door=val(/\bDoor\s*[:#\-]?\s*([A-Z0-9]+)/i);
- const row=val(/\bRow\s*[:#\-]?\s*([A-Z0-9]+)/i);
- const seat=val(/\bSeats?\s*[:#\-]?\s*([A-Z0-9]+(?:\s*[-–]\s*[A-Z0-9]+)?)/i);
+ let door=val(/\bDoor\s*[:#\-]?\s*([A-Z0-9]+)/i);
+ let row=val(/\bRow\s*[:#\-]?\s*([A-Z0-9]+)/i);
+ let seat=val(/\bSeats?\s*[:#\-]?\s*([A-Z0-9]+(?:\s*[-–]\s*[A-Z0-9]+)?)/i);
+ if(/^(section|row|seat)$/i.test(door))door='';
+ if(/^(seat|door|section)$/i.test(row))row='';
+ if(/^(door|section|row)$/i.test(seat))seat='';
  const ref=val(/\b(?:Order(?:\s+Number)?|Booking(?:\s+Reference)?|Reference)\s*[:#\-]?\s*([A-Z0-9-]{5,})/i);
  let area='',section='';
  let m=clean.match(/\b(Stalls|Rausing\s+Circle|Circle|Gallery|Arena|Choir|Grand\s+Tier|Second\s+Tier|Loggia|Box)\s*[:#\-]?\s*([A-Z]{1,2}|\d{1,3})?(?=\s+(?:Row|Seat|Door|Gate|Entry|Booking|Reference|Order)\b|\s*$)/i);
  if(m){area=m[1].replace(/\s+/g,' ').trim();section=[area,m[2]||''].filter(Boolean).join(' ')}
  else {m=clean.match(/\bSection\s*[:#\-]?\s*([A-Z]{1,2}|\d{1,3})(?=\s+(?:Row|Seat|Door|Gate|Entry|Booking|Reference|Order)\b|\s*$)/i);if(m)section=m[1]}
- // RAH PDF extraction sometimes loses the Row/Seat labels and leaves:
- // "Door 9 Stalls O 1 105". Recover that compact layout as a fallback.
- if((!row||!seat)){
-   const compact=clean.match(/\bDoor\s*[:#\-]?\s*([A-Z0-9]+).*?\b(Stalls|Rausing\s+Circle|Circle|Gallery|Arena|Choir|Grand\s+Tier|Second\s+Tier|Loggia|Box)\s+([A-Z]{1,2})\s+(\d{1,3})\s+(\d{1,4})\b/i);
-   if(compact){
-     if(!area) area=compact[2].replace(/\s+/g,' ').trim();
-     if(!section) section=area+' '+compact[3].toUpperCase();
-     if(!row) row=compact[4];
-     if(!seat) seat=compact[5];
+ // RAH PDFs do not preserve the visual table order.  PDF.js can return the
+ // headings first ("Door Section Row Seat") and the values much later, so label/value
+ // regexes alone are unreliable.  Recover the actual RAH ticket layout.
+ if(!row||!seat||!section||!door || /^(section|row|seat)$/i.test(door)){
+   const sec=clean.match(/\b(Stalls|Rausing\s+Circle|Circle|Gallery|Arena|Choir|Grand\s+Tier|Second\s+Tier|Loggia|Box)\s+([A-Z]{1,2})\b/i);
+   if(sec){
+     area=sec[1].replace(/\s+/g,' ').trim();
+     section=area+' '+sec[2].toUpperCase();
+
+     // Door is printed immediately before the purchaser title/name in current RAH PDFs.
+     const before=clean.slice(0,sec.index);
+     const dm=before.match(/\b(\d{1,2})\s+(?=(?:Mr|Mrs|Ms|Miss|Dr)\b)[^]*$/i);
+     if(dm) door=dm[1];
+
+     // Row, seat and order number are the final numeric fields between the section
+     // and the printed event date.  Example from a real RAH ticket:
+     // "... Stalls O ... 1 105 143446017 Fri, 07 Aug 2026 ..."
+     const tail=clean.slice(sec.index+sec[0].length);
+     const eventDate=tail.search(/\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s*,?\s*\d{1,2}\s+[A-Z][a-z]{2}/);
+     const ticketPart=eventDate>=0?tail.slice(0,eventDate):tail;
+     const nums=[...ticketPart.matchAll(/\b\d+\b/g)].map(x=>x[0]);
+     if(nums.length>=3){
+       const order=nums[nums.length-1], seatCandidate=nums[nums.length-2], rowCandidate=nums[nums.length-3];
+       if(+rowCandidate<=99 && +seatCandidate<=9999){
+         row=rowCandidate; seat=seatCandidate;
+         if(!ref && order.length>=6) ref=order;
+       }
+     }
    }
  }
  return{area,section,row,seat,door,reference:ref,notes:/restricted view/i.test(clean)?'Restricted view':''}
