@@ -1,4 +1,4 @@
-const CACHE = 'proms-finder-v3-ticket-read-fix';
+const CACHE = 'proms-finder-v4-ticket-reread-fix';
 
 self.addEventListener('install', event => {
   self.skipWaiting();

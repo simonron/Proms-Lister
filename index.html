@@ -188,7 +188,29 @@ const u=URL.createObjectURL(blob);
 window.open(u,'_blank');
 setTimeout(()=>URL.revokeObjectURL(u),60000);
 }
-function openDetail(c){selected=c;const t=ticketFor(c);$('detail').innerHTML=`<div class="prom-number">${esc(promLabel(c))}</div><div style="font-size:12px;color:var(--sage);text-transform:uppercase">${fmt(c.date)} · ${esc(c.time)}</div><h2>${esc(c.title)}</h2><div class="meta"><div><b>Venue</b>${esc(c.venue)}</div>${c.price?`<div><b>Price</b>${esc(c.price)}</div>`:''}</div>${c.programme?`<div class="section"><h3>Programme</h3><p>${esc(c.programme)}</p></div>`:''}${c.performers?`<div class="section"><h3>Performers</h3><p>${esc(c.performers)}</p></div>`:''}${c.broadcast?`<div class="section"><h3>Broadcast</h3><p>${esc(c.broadcast)}</p></div>`:''}<div class="ticketbox"><div class="grid"><label class="check"><input id="myProm" type="checkbox" ${t.myProm?'checked':''}> My Prom</label><label class="check"><input id="hasTicket" type="checkbox" ${t.hasTicket?'checked':''}> I have a ticket</label></div><div class="grid"><label class="field"><span>Area</span><input id="area" value="${esc(t.area||'')}"></label><label class="field"><span>Section / box</span><input id="section" value="${esc(t.section||'')}"></label><label class="field"><span>Row</span><input id="row" value="${esc(t.row||'')}"></label><label class="field"><span>Seat</span><input id="seat" value="${esc(t.seat||'')}"></label><label class="field"><span>Door</span><input id="door" value="${esc(t.door||'')}"></label><label class="field"><span>Reference</span><input id="reference" value="${esc(t.reference||'')}"></label></div><label class="field"><span>Notes</span><textarea id="notes">${esc(t.notes||'')}</textarea></label><div class="actions"><button class="btn primary" id="saveTicket">Save ticket</button><button class="btn" id="attachPdf">Attach Ticket</button><button class="btn" id="openPdf">Open Ticket</button><button class="btn danger" id="removeTicket">Remove ticket</button></div><div class="actions"><button class="btn" type="button" id="rahTicketPlan">RAH seating plan</button><button class="btn" type="button" id="copySeat">Copy seat details</button></div><div class="syncnote">Use Export backup on one device, then Import backup on the other. The ZIP includes ticket details, notes and attached ticket files.</div></div>`;$('saveTicket').onclick=saveEditor;$('attachPdf').onclick=()=>{window.attachTarget=c;$('pdfPick').click()};$('openPdf').onclick=()=>openPdf(c);$('removeTicket').onclick=async()=>{const all=loadTickets();delete all[keyFor(c)];saveTickets(all);await pdfDelete(keyFor(c));closeSheet();render();writeCalendarSyncFile()};$('copySeat').onclick=async()=>{const live=currentSeatTicket();if(window.RAHSeatMap)window.RAHSeatMap.setTicket(live);const parts=[c.title,(live.section||live.area),live.row&&'Row '+live.row,live.seat&&'Seat '+live.seat,live.door&&'Door '+live.door].filter(Boolean),text=parts.join('\n'),b=$('copySeat');try{if(navigator.clipboard&&window.isSecureContext)await navigator.clipboard.writeText(text);else{const x=document.createElement('textarea');x.value=text;x.style.position='fixed';x.style.opacity='0';document.body.appendChild(x);x.select();document.execCommand('copy');x.remove()}b.textContent='Copied ✓';setTimeout(()=>b.textContent='Copy seat details',1400)}catch(e){alert('Could not copy automatically.\n\n'+text)}};$('rahTicketPlan').onclick=()=>showRAHPlan();$('backdrop').classList.add('open');$('sheet').classList.add('open')}
+function openDetail(c){selected=c;const t=ticketFor(c);$('detail').innerHTML=`<div class="prom-number">${esc(promLabel(c))}</div><div style="font-size:12px;color:var(--sage);text-transform:uppercase">${fmt(c.date)} · ${esc(c.time)}</div><h2>${esc(c.title)}</h2><div class="meta"><div><b>Venue</b>${esc(c.venue)}</div>${c.price?`<div><b>Price</b>${esc(c.price)}</div>`:''}</div>${c.programme?`<div class="section"><h3>Programme</h3><p>${esc(c.programme)}</p></div>`:''}${c.performers?`<div class="section"><h3>Performers</h3><p>${esc(c.performers)}</p></div>`:''}${c.broadcast?`<div class="section"><h3>Broadcast</h3><p>${esc(c.broadcast)}</p></div>`:''}<div class="ticketbox"><div class="grid"><label class="check"><input id="myProm" type="checkbox" ${t.myProm?'checked':''}> My Prom</label><label class="check"><input id="hasTicket" type="checkbox" ${t.hasTicket?'checked':''}> I have a ticket</label></div><div class="grid"><label class="field"><span>Area</span><input id="area" value="${esc(t.area||'')}"></label><label class="field"><span>Section / box</span><input id="section" value="${esc(t.section||'')}"></label><label class="field"><span>Row</span><input id="row" value="${esc(t.row||'')}"></label><label class="field"><span>Seat</span><input id="seat" value="${esc(t.seat||'')}"></label><label class="field"><span>Door</span><input id="door" value="${esc(t.door||'')}"></label><label class="field"><span>Reference</span><input id="reference" value="${esc(t.reference||'')}"></label></div><label class="field"><span>Notes</span><textarea id="notes">${esc(t.notes||'')}</textarea></label><div class="actions"><button class="btn primary" id="saveTicket">Save ticket</button><button class="btn" id="attachPdf">Attach Ticket</button><button class="btn" id="openPdf">Open Ticket</button><button class="btn danger" id="removeTicket">Remove ticket</button></div><div class="actions"><button class="btn" type="button" id="rahTicketPlan">RAH seating plan</button><button class="btn" type="button" id="copySeat">Copy seat details</button></div><div class="syncnote">Use Export backup on one device, then Import backup on the other. The ZIP includes ticket details, notes and attached ticket files.</div></div>`;$('saveTicket').onclick=saveEditor;$('attachPdf').onclick=()=>{window.attachTarget=c;$('pdfPick').click()};$('openPdf').onclick=()=>openPdf(c);$('removeTicket').onclick=async()=>{const all=loadTickets();delete all[keyFor(c)];saveTickets(all);await pdfDelete(keyFor(c));closeSheet();render();writeCalendarSyncFile()};$('copySeat').onclick=async()=>{
+ const b=$('copySeat'),original='Copy seat details';
+ b.disabled=true;b.textContent='Reading ticket…';
+ try{
+   const t=await rereadStoredTicket(c);
+   // Refresh the visible editor with the newly-read values.
+   openDetail(c);
+   setTimeout(()=>{if(window.RAHSeatMap)window.RAHSeatMap.setTicket(t)},0);
+   const parts=[c.title,(t.section||t.area),t.row&&'Row '+t.row,t.seat&&'Seat '+t.seat,t.door&&'Door '+t.door].filter(Boolean);
+   const text=parts.join('\n');
+   try{
+     if(navigator.clipboard&&window.isSecureContext) await navigator.clipboard.writeText(text);
+     else{
+       const x=document.createElement('textarea');x.value=text;x.style.position='fixed';x.style.opacity='0';
+       document.body.appendChild(x);x.select();document.execCommand('copy');x.remove();
+     }
+   }catch(copyError){console.warn('Copy failed',copyError)}
+   const nb=$('copySeat');if(nb){nb.textContent='Ticket details read ✓';setTimeout(()=>{if($('copySeat'))$('copySeat').textContent=original},1800)}
+ }catch(e){
+   b.disabled=false;b.textContent=original;
+   alert('Could not read the attached ticket.\n\n'+e.message);
+ }
+};$('rahTicketPlan').onclick=()=>showRAHPlan();$('backdrop').classList.add('open');$('sheet').classList.add('open')}
 function saveEditor(){if(!selected)return;const all=loadTickets(),k=keyFor(selected),old=all[k]||{};const t={...old,myProm:$('myProm').checked,hasTicket:$('hasTicket').checked,area:$('area').value.trim(),section:$('section').value.trim(),row:$('row').value.trim(),seat:$('seat').value.trim(),door:$('door').value.trim(),reference:$('reference').value.trim(),notes:$('notes').value.trim(),updatedAt:Date.now()};if(!t.myProm&&!t.hasTicket&&!t.area&&!t.section&&!t.row&&!t.seat&&!t.door&&!t.reference&&!t.notes&&!t.pdfName)delete all[k];else all[k]=t;saveTickets(all);render();openDetail(selected);writeCalendarSyncFile()}
 function closeSheet(){$('backdrop').classList.remove('open');$('sheet').classList.remove('open')}
 async function pdfPages(file){
@@ -218,9 +240,40 @@ function parseTicket(text){
  let m=clean.match(/\b(Stalls|Rausing\s+Circle|Circle|Gallery|Arena|Choir|Grand\s+Tier|Second\s+Tier|Loggia|Box)\s*[:#\-]?\s*([A-Z]{1,2}|\d{1,3})?(?=\s+(?:Row|Seat|Door|Gate|Entry|Booking|Reference|Order)\b|\s*$)/i);
  if(m){area=m[1].replace(/\s+/g,' ').trim();section=[area,m[2]||''].filter(Boolean).join(' ')}
  else {m=clean.match(/\bSection\s*[:#\-]?\s*([A-Z]{1,2}|\d{1,3})(?=\s+(?:Row|Seat|Door|Gate|Entry|Booking|Reference|Order)\b|\s*$)/i);if(m)section=m[1]}
- // RAH tickets commonly print e.g. "Stalls O"; retain both the human label and map-friendly section.
+ // RAH PDF extraction sometimes loses the Row/Seat labels and leaves:
+ // "Door 9 Stalls O 1 105". Recover that compact layout as a fallback.
+ if((!row||!seat)){
+   const compact=clean.match(/\bDoor\s*[:#\-]?\s*([A-Z0-9]+).*?\b(Stalls|Rausing\s+Circle|Circle|Gallery|Arena|Choir|Grand\s+Tier|Second\s+Tier|Loggia|Box)\s+([A-Z]{1,2})\s+(\d{1,3})\s+(\d{1,4})\b/i);
+   if(compact){
+     if(!area) area=compact[2].replace(/\s+/g,' ').trim();
+     if(!section) section=area+' '+compact[3].toUpperCase();
+     if(!row) row=compact[4];
+     if(!seat) seat=compact[5];
+   }
+ }
  return{area,section,row,seat,door,reference:ref,notes:/restricted view/i.test(clean)?'Restricted view':''}
 }
+
+async function rereadStoredTicket(c){
+ const k=keyFor(c),stored=await pdfGet(k);
+ if(!stored||!stored.blob) throw new Error('No attached ticket file is stored for this Prom.');
+ const blob=stored.blob;
+ const name=stored.name||ticketFor(c).pdfName||'ticket.pdf';
+ const type=blob.type||mimeForName(name)||'application/octet-stream';
+ let texts=[];
+ if(type==='application/pdf'||name.toLowerCase().endsWith('.pdf')) texts=await pdfPages(blob);
+ else texts=[await imageText(blob)];
+ const joined=texts.filter(Boolean).join(' ');
+ if(!joined.trim()) throw new Error('The attached ticket contains no readable text.');
+ const parsed=parseTicket(joined);
+ const found=[parsed.door,parsed.section||parsed.area,parsed.row,parsed.seat].filter(Boolean).length;
+ if(!found) throw new Error('Ticket opened, but Door / Section / Row / Seat could not be recognised.');
+ const all=loadTickets(),old=all[k]||{};
+ all[k]={...old,...parsed,hasTicket:true,pdfName:name,fileType:type,updatedAt:Date.now()};
+ saveTickets(all);
+ return all[k];
+}
+
 	async function importPdfs(files){
 let ok=0,fail=[];
 for(const file of files){
