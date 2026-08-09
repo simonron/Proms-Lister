@@ -3,10 +3,11 @@
 <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:2rem">Loading Proms Lister…</div>
 <script>
 (async()=>{
- const r=await fetch('./zindex.html?v=rah-reader-ff722cd',{cache:'no-store'});
+ const REV='pdf-direct-890a5a4';
+ const r=await fetch('./zindex.html?v='+REV,{cache:'no-store'});
  if(!r.ok)throw Error('Could not load Proms Lister source: '+r.status);
  let h=await r.text();
- h=h.replace('</body>','<script src="./ticket-history.js?v=rah-reader-ff722cd"><\/script><script src="./ticket-reader-rah.js?v=rah-reader-ff722cd"><\/script></body>');
+ h=h.replace('</body>','<script src="./ticket-history.js?v='+REV+'"><\/script><script src="./rah-seating-plan.js?v='+REV+'"><\/script><script src="./ticket-reader-rah.js?v='+REV+'"><\/script></body>');
  document.open();document.write(h);document.close();
 })().catch(e=>{document.body.innerHTML='<pre style="white-space:pre-wrap;padding:1rem;color:#9c2f2f">Proms Lister failed to load: '+String(e&&e.message?e.message:e)+'</pre>'});
 </script></body></html>
