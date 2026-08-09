@@ -1,4 +1,4 @@
-const CACHE = 'proms-finder-v9-ticket-reader-enabled';
+const CACHE = 'proms-finder-v10-real-pdf-tested';
 const ASSETS = ['./', './index.html', './manifest.json', './icon.png'];
 
 self.addEventListener('install', evt => {
