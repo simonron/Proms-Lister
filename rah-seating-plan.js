@@ -27,3 +27,54 @@ function install(ticket){if(ticket&&Object.keys(ticket).length)activeTicket=tick
 function setTicket(t){if(t&&Object.keys(t).length)activeTicket=t;renderMarker()}
 window.RAHSeatMap={mapRevision:MAP_REV,install,setTicket,locate,nearest,startCorrection,renderMarker,lookup:LOOKUP,currentTicket};
 })();
+/* Proms Lister seat-plan UI bootstrap. Calendar integration intentionally disabled. */
+(function(){
+'use strict';
+function selectedTicket(){
+ try{return (typeof selected!=='undefined'&&selected&&typeof ticketFor==='function')?ticketFor(selected):{}}
+ catch(e){return{}}
+}
+function disableCalendar(){
+ const b=document.getElementById('homeCalendar'); if(b)b.remove();
+ const s=document.getElementById('calendarStatus'); if(s)s.remove();
+ try{window.connectCalendarSync=function(){};window.writeCalendarSyncFile=function(){return Promise.resolve()}}catch(e){}
+}
+function showPlan(){
+ let m=document.getElementById('rahPlanModal');
+ if(!m){
+  m=document.createElement('div');m.id='rahPlanModal';m.style='position:fixed;inset:0;background:#222e;z-index:99999;display:flex;flex-direction:column';
+  m.innerHTML='<div style="background:white;padding:8px;display:flex;gap:8px;align-items:center"><strong style="flex:1">Royal Albert Hall seating plan</strong><button id="zp">＋</button><button id="zm">−</button><button id="zr">Reset</button><button id="pc">Close</button></div><div id="pv" style="flex:1;overflow:auto;text-align:center;position:relative"><div id="pi" style="position:relative;display:inline-block;transform-origin:top left"><img id="rahImg" src="rah-seating-plan2.jpeg?v=20260809B" width="1346" height="1536" style="display:block;max-width:none;width:1346px;height:1536px"></div></div><div id="seatLabel" style="background:white;padding:8px;text-align:center"></div>';
+  document.body.appendChild(m);m._z=1;
+  const apply=()=>m.querySelector('#pi').style.transform='scale('+m._z+')';
+  m.querySelector('#zp').onclick=()=>{m._z=Math.min(6,m._z+.25);apply()};
+  m.querySelector('#zm').onclick=()=>{m._z=Math.max(.25,m._z-.25);apply()};
+  m.querySelector('#zr').onclick=()=>{m._z=1;apply()};
+  m.querySelector('#pc').onclick=()=>{m.style.display='none';const bar=document.getElementById('rahCorrectionBar');if(bar)bar.remove()};
+  m.querySelector('#pv').addEventListener('wheel',e=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();m._z=Math.max(.25,Math.min(6,m._z+(e.deltaY<0?.15:-.15)));apply()},{passive:false});
+ }
+ m.style.display='flex';
+ const t=selectedTicket();
+ setTimeout(()=>{if(window.RAHSeatMap){window.RAHSeatMap.install(t);window.RAHSeatMap.setTicket(t);window.RAHSeatMap.renderMarker()}},0);
+}
+function addHomeLink(){
+ const menu=document.querySelector('#homePage .home-menu'),p=document.getElementById('homePage');
+ if((!menu&&!p)||document.getElementById('homeSeatPlan'))return;
+ const b=document.createElement('button');b.id='homeSeatPlan';b.className=menu?'home-button':'btn';b.type='button';
+ b.innerHTML='RAH interactive seating plan<small>Find and mark the Section, Row and Seat from your ticket</small>';
+ b.onclick=e=>{e.preventDefault();e.stopPropagation();showPlan()};(menu||p).appendChild(b);
+}
+function wireTicketButton(){
+ document.querySelectorAll('a,button').forEach(b=>{
+  const label=(b.textContent||'').trim().toLowerCase();
+  if(label==='rah seating plan'){
+   if(b.tagName==='A')b.removeAttribute('href');
+   b.onclick=e=>{e.preventDefault();e.stopPropagation();showPlan()};
+  }
+ });
+}
+function refresh(){disableCalendar();addHomeLink();wireTicketButton()}
+const mo=new MutationObserver(refresh);mo.observe(document.documentElement,{subtree:true,childList:true});
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',refresh);else refresh();
+setTimeout(refresh,100);
+window.showRAHPlan=showPlan;
+})();
