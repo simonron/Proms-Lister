@@ -1,4 +1,4 @@
-const CACHE = 'proms-finder-v10-real-pdf-tested';
+const CACHE = 'proms-finder-v8-very-good-page-seat';
 const ASSETS = ['./', './index.html', './manifest.json', './icon.png'];
 
 self.addEventListener('install', evt => {
