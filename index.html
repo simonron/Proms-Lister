@@ -177,42 +177,13 @@ function openTonight(){
 }
 function render(){const q=$('q').value.trim(),re=q?wildcard(q):null,from=$('from').value,to=$('to').value,all=loadTickets();const list=concerts.filter(c=>{const t=all[keyFor(c)]||{};const hay=[c.title,c.programme,c.performers,c.venue,c.city,t.area,t.section,t.row,t.seat,t.door,t.reference,t.notes].join(' ');return(!from||c.date>=from)&&(!to||c.date<=to)&&(!re||re.test(hay))&&(!ticketOnly||t.myProm||t.hasTicket)});$('count').textContent=`${list.length} Royal Albert Hall concert${list.length===1?'':'s'}`;$('results').innerHTML=list.length?'':'<div class="empty">No matching concerts.</div>';let last='';for(const c of list){if(c.date!==last){const d=document.createElement('div');d.className='day';d.textContent=fmt(c.date);$('results').appendChild(d);last=c.date}const t=all[keyFor(c)]||{},att=t.hasTicket&&new Date(c.date+'T23:59:59')<new Date(),where=[t.section||t.area,t.row&&`Row ${t.row}`,t.seat&&`Seat ${t.seat}`].filter(Boolean).join(' · '),seatText=String(t.section||t.area||'').toLowerCase(),seatSticker=seatText.includes('standing')||seatText.includes('arena')?'sticker-green':seatText.includes('stalls')?'sticker-red':'';const el=document.createElement('article');el.className='card'+(t.hasTicket?' ticket':(t.myProm?' my-prom-card':''));const stickers=[t.myProm?'<span class="sticker sticker-my-prom">♡ My Prom</span>':'',t.hasTicket?`<span class="sticker sticker-ticket">${att?'✓ Attended':'🎟 Ticket'}</span>`:'',where?`<span class="sticker ${seatSticker}">${esc(where)}</span>`:'',t.door?`<span class="sticker">Door ${esc(t.door)}</span>`:'',t.pdfName?'<span class="sticker">Ticket attached</span>':''].filter(Boolean).join('');el.innerHTML=`<div class="prom-number">${esc(promLabel(c))}</div><div class="top"><div class="title">${esc(c.title)}</div><div class="time">${esc(c.time)}</div></div><div class="venue">${esc(c.venue)}</div>${c.programme?`<div class="programme">${esc(c.programme)}</div>`:''}${stickers?`<div class="status-stickers">${stickers}</div>`:''}${t.hasTicket?`<button class="flag" title="Open Ticket">${att?'✅':'🎟'}</button>`:''}`;el.onclick=e=>{if(e.target.classList.contains('flag')){e.stopPropagation();openPdf(c)}else openDetail(c)};$('results').appendChild(el)}updateHome()}
 	async function openPdf(c){
-const rec=await pdfGet(keyFor(c));
-if(!rec){
-alert('No ticket is attached to this concert.');
-return;
+ const k=keyFor(c),rec=await pdfGet(k);if(!rec){alert('No ticket is attached to this concert.');return}
+ const type=rec.blob.type||mimeForName(rec.name)||'application/octet-stream',blob=new Blob([rec.blob],{type}),u=URL.createObjectURL(blob),t=ticketFor(c);
+ if(type!=='application/pdf'&&!String(rec.name||'').toLowerCase().endsWith('.pdf')){window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),120000);return}
+ let page=Number(t.ticketPage||0);
+ if(!page){try{const pages=await pdfPages(rec.blob),all=loadTickets(),idx=bestTicketPage(c,pages,0);page=idx+1;all[k]={...t,ticketPage:page,updatedAt:Date.now()};saveTickets(all)}catch(e){page=1}}
+ const w=window.open(u+'#page='+page+'&zoom=page-width','_blank');if(!w)alert('Please allow pop-ups so the ticket can be displayed.');setTimeout(()=>URL.revokeObjectURL(u),300000);
 }
-const type=rec.blob.type||mimeForName(rec.name)||'application/octet-stream';
-const blob=new Blob([rec.blob],{type});
-const u=URL.createObjectURL(blob);
-window.open(u,'_blank');
-setTimeout(()=>URL.revokeObjectURL(u),60000);
-}
-function openDetail(c){selected=c;const t=ticketFor(c);$('detail').innerHTML=`<div class="prom-number">${esc(promLabel(c))}</div><div style="font-size:12px;color:var(--sage);text-transform:uppercase">${fmt(c.date)} · ${esc(c.time)}</div><h2>${esc(c.title)}</h2><div class="meta"><div><b>Venue</b>${esc(c.venue)}</div>${c.price?`<div><b>Price</b>${esc(c.price)}</div>`:''}</div>${c.programme?`<div class="section"><h3>Programme</h3><p>${esc(c.programme)}</p></div>`:''}${c.performers?`<div class="section"><h3>Performers</h3><p>${esc(c.performers)}</p></div>`:''}${c.broadcast?`<div class="section"><h3>Broadcast</h3><p>${esc(c.broadcast)}</p></div>`:''}<div class="ticketbox"><div class="grid"><label class="check"><input id="myProm" type="checkbox" ${t.myProm?'checked':''}> My Prom</label><label class="check"><input id="hasTicket" type="checkbox" ${t.hasTicket?'checked':''}> I have a ticket</label></div><div class="grid"><label class="field"><span>Area</span><input id="area" value="${esc(t.area||'')}"></label><label class="field"><span>Section / box</span><input id="section" value="${esc(t.section||'')}"></label><label class="field"><span>Row</span><input id="row" value="${esc(t.row||'')}"></label><label class="field"><span>Seat</span><input id="seat" value="${esc(t.seat||'')}"></label><label class="field"><span>Door</span><input id="door" value="${esc(t.door||'')}"></label><label class="field"><span>Reference</span><input id="reference" value="${esc(t.reference||'')}"></label></div><label class="field"><span>Notes</span><textarea id="notes">${esc(t.notes||'')}</textarea></label><div class="actions"><button class="btn primary" id="saveTicket">Save ticket</button><button class="btn" id="attachPdf">Attach Ticket</button><button class="btn" id="openPdf">Open Ticket</button><button class="btn danger" id="removeTicket">Remove ticket</button></div><div class="actions"><button class="btn" type="button" id="rahTicketPlan">RAH seating plan</button><button class="btn" type="button" id="copySeat">Copy seat details</button></div><div class="syncnote">Use Export backup on one device, then Import backup on the other. The ZIP includes ticket details, notes and attached ticket files.</div></div>`;$('saveTicket').onclick=saveEditor;$('attachPdf').onclick=()=>{window.attachTarget=c;$('pdfPick').click()};$('openPdf').onclick=()=>openPdf(c);$('removeTicket').onclick=async()=>{const all=loadTickets();delete all[keyFor(c)];saveTickets(all);await pdfDelete(keyFor(c));closeSheet();render();writeCalendarSyncFile()};$('copySeat').onclick=async()=>{
- const b=$('copySeat'),original='Copy seat details';
- b.disabled=true;b.textContent='Reading ticket…';
- try{
-   const t=await rereadStoredTicket(c);
-   // Refresh the visible editor with the newly-read values.
-   openDetail(c);
-   setTimeout(()=>{if(window.RAHSeatMap)window.RAHSeatMap.setTicket(t)},0);
-   const parts=[c.title,(t.section||t.area),t.row&&'Row '+t.row,t.seat&&'Seat '+t.seat,t.door&&'Door '+t.door].filter(Boolean);
-   const text=parts.join('\n');
-   try{
-     if(navigator.clipboard&&window.isSecureContext) await navigator.clipboard.writeText(text);
-     else{
-       const x=document.createElement('textarea');x.value=text;x.style.position='fixed';x.style.opacity='0';
-       document.body.appendChild(x);x.select();document.execCommand('copy');x.remove();
-     }
-   }catch(copyError){console.warn('Copy failed',copyError)}
-   const nb=$('copySeat');if(nb){nb.textContent='Ticket details read ✓';setTimeout(()=>{if($('copySeat'))$('copySeat').textContent=original},1800)}
- }catch(e){
-   b.disabled=false;b.textContent=original;
-   alert('Could not read the attached ticket.\n\n'+e.message);
- }
-};$('rahTicketPlan').onclick=()=>showRAHPlan();$('backdrop').classList.add('open');$('sheet').classList.add('open')}
-function saveEditor(){if(!selected)return;const all=loadTickets(),k=keyFor(selected),old=all[k]||{};const t={...old,myProm:$('myProm').checked,hasTicket:$('hasTicket').checked,area:$('area').value.trim(),section:$('section').value.trim(),row:$('row').value.trim(),seat:$('seat').value.trim(),door:$('door').value.trim(),reference:$('reference').value.trim(),notes:$('notes').value.trim(),updatedAt:Date.now()};if(!t.myProm&&!t.hasTicket&&!t.area&&!t.section&&!t.row&&!t.seat&&!t.door&&!t.reference&&!t.notes&&!t.pdfName)delete all[k];else all[k]=t;saveTickets(all);render();openDetail(selected);writeCalendarSyncFile()}
-function closeSheet(){$('backdrop').classList.remove('open');$('sheet').classList.remove('open')}
 async function pdfPages(file){
 const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
 const pages=[];
@@ -276,55 +247,40 @@ function parseTicket(text){
  return{area,section,row,seat,door,reference:ref,notes:/restricted view/i.test(clean)?'Restricted view':''}
 }
 
+function ticketPageScore(c,page){
+ const text=typeof page==='string'?page:(page&&page.text)||'',n=norm(text),titleWords=norm(c.title||'').split(' ').filter(w=>w.length>3);
+ let score=titleWords.filter(w=>n.includes(w)).length*3;
+ if(c.date&&dateFromText(text)===c.date)score+=12;
+ const matched=matchConcert(text);if(matched&&keyFor(matched)===keyFor(c))score+=30;
+ return score;
+}
+function bestTicketPage(c,pages,savedPage){
+ const n=Number(savedPage||0);if(n>=1&&n<=pages.length)return n-1;
+ let best=0,bestScore=-1;for(let i=0;i<pages.length;i++){const q=ticketPageScore(c,pages[i]);if(q>bestScore){bestScore=q;best=i}}return best;
+}
 async function rereadStoredTicket(c){
- const k=keyFor(c),stored=await pdfGet(k);
- if(!stored||!stored.blob) throw new Error('No attached ticket file is stored for this Prom.');
- const blob=stored.blob;
- const name=stored.name||ticketFor(c).pdfName||'ticket.pdf';
- const type=blob.type||mimeForName(name)||'application/octet-stream';
- let texts=[];
- if(type==='application/pdf'||name.toLowerCase().endsWith('.pdf')) texts=await pdfPages(blob);
- else texts=[await imageText(blob)];
- const joined=texts.filter(Boolean).join(' ');
- if(!joined.trim()) throw new Error('The attached ticket contains no readable text.');
- const parsed=parseTicket(joined);
- const found=[parsed.door,parsed.section||parsed.area,parsed.row,parsed.seat].filter(Boolean).length;
- if(!found) throw new Error('Ticket opened, but Door / Section / Row / Seat could not be recognised.');
- const all=loadTickets(),old=all[k]||{};
- all[k]={...old,...parsed,hasTicket:true,pdfName:name,fileType:type,updatedAt:Date.now()};
- saveTickets(all);
- return all[k];
+ const k=keyFor(c),stored=await pdfGet(k);if(!stored||!stored.blob)throw Error('No attached ticket file is stored for this Prom.');
+ const blob=stored.blob,name=stored.name||ticketFor(c).pdfName||'ticket.pdf',type=blob.type||mimeForName(name)||'application/octet-stream';
+ const pages=(type==='application/pdf'||name.toLowerCase().endsWith('.pdf'))?await pdfPages(blob):[await imageText(blob)];
+ const all=loadTickets(),old=all[k]||{},idx=bestTicketPage(c,pages,old.ticketPage),parsed=parseTicket(pages[idx]);
+ all[k]={...old,...parsed,hasTicket:true,pdfName:name,fileType:type,ticketPage:idx+1,updatedAt:Date.now()};saveTickets(all);return all[k];
 }
 
-	async function importPdfs(files){
-let ok=0,fail=[];
-for(const file of files){
-try{
-const isPdf=file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf');
-let tickets=[];
-if(isPdf){
-tickets=await pdfPages(file);
-}else{
-tickets=[await imageText(file)];
-}
-for(const extractedText of tickets){
-const c=window.attachTarget||matchConcert(extractedText);
-if(!c){continue;}
-const parsed=parseTicket(extractedText);
-const all=loadTickets(),k=keyFor(c),old=all[k]||{};
-const storedType=file.type||mimeForName(file.name)||'application/octet-stream';
-all[k]={...old,...parsed,hasTicket:true,pdfName:file.name,fileType:storedType,updatedAt:Date.now()};
-saveTickets(all);
-if(selected&&keyFor(selected)===k){openDetail(selected);setTimeout(()=>{if(window.RAHSeatMap)window.RAHSeatMap.setTicket(ticketFor(selected))},0)}
-await pdfPut(k,new Blob([file],{type:storedType}),file.name);
-ok++;
-}
-window.attachTarget=null;
-}catch(e){console.error(e);fail.push(file.name);}
-}
-render();
-$('importStatus').textContent=`Imported ${ok} ticket file${ok===1?'':'s'}${fail.length?`; could not match: ${fail.join(', ')}`:''}`;
-if(selected)openDetail(selected);writeCalendarSyncFile();
+async function importPdfs(files){
+ let ok=0,fail=[];
+ for(const file of files){try{
+  const isPdf=file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf'),pages=isPdf?await pdfPages(file):[await imageText(file)],storedType=file.type||mimeForName(file.name)||'application/octet-stream';
+  if(window.attachTarget){
+   const c=window.attachTarget,idx=bestTicketPage(c,pages,0),parsed=parseTicket(pages[idx]),all=loadTickets(),k=keyFor(c),old=all[k]||{};
+   all[k]={...old,...parsed,hasTicket:true,pdfName:file.name,fileType:storedType,ticketPage:idx+1,updatedAt:Date.now()};saveTickets(all);await pdfPut(k,new Blob([file],{type:storedType}),file.name);ok++;
+  }else for(let i=0;i<pages.length;i++){
+   const page=pages[i],text=typeof page==='string'?page:(page&&page.text)||'',c=matchConcert(text);if(!c)continue;
+   const parsed=parseTicket(page),all=loadTickets(),k=keyFor(c),old=all[k]||{};
+   all[k]={...old,...parsed,hasTicket:true,pdfName:file.name,fileType:storedType,ticketPage:i+1,updatedAt:Date.now()};saveTickets(all);await pdfPut(k,new Blob([file],{type:storedType}),file.name);ok++;
+  }
+  window.attachTarget=null;
+ }catch(e){console.error(e);fail.push(file.name);window.attachTarget=null}}
+ render();$('importStatus').textContent=`Imported ${ok} ticket${ok===1?'':'s'}${fail.length?`; could not match: ${fail.join(', ')}`:''}`;if(selected)openDetail(selected);
 }
 async function exportBackup(){const zip=new JSZip(),all=loadTickets(),manifest={format:'proms-lister-backup-v1',created:new Date().toISOString(),tickets:all};zip.file('backup.json',JSON.stringify(manifest,null,2));for(const [k,t] of Object.entries(all)){if(t.pdfName){const rec=await pdfGet(k);if(rec)zip.file('pdfs/'+encodeURIComponent(k)+'__'+rec.name,rec.blob)}}const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`PromsListerBackup_${new Date().toISOString().slice(0,10)}.zip`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),30000)}
 	async function importBackup(file){
