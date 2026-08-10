@@ -1,6 +1,6 @@
 /* Proms Lister ticket reader + RAH marker/fixer. GOOD baseline retained. */
 (function(){'use strict';
-const PUSH_LABEL='10 Aug 2026 16:35 BST',CORR='rahUserSeatCorrections:v1';
+const PUSH_LABEL='10 Aug 2026 23:24 BST',CORR='rahUserSeatCorrections:v1';
 function addPushLabel(){const f=document.querySelector('.home-footer');if(!f)return;let x=document.getElementById('lastPushLabel');if(!x){x=document.createElement('div');x.id='lastPushLabel';x.style.cssText='margin-top:8px;font-weight:800;color:#6e1f26';f.appendChild(x)}x.textContent='Last push: '+PUSH_LABEL}
 
 /* GOOD: correctly selects the ticket inside a long multi-ticket PDF. DO NOT ALTER. */
@@ -12,14 +12,49 @@ function historicalSeat(text){
  for(const re of [/\b(Stalls\s+[A-Z]{1,2})\b/i,/\b(Rausing Circle\s+[A-Z]{1,2})\b/i,/\b(Circle\s+[A-Z]{1,2})\b/i,/\b(Gallery\s+[A-Z]{1,2})\b/i,/\b(Choir\s+[A-Z]{1,2})\b/i,/\b(Grand Tier\s+[A-Z0-9]{1,4})\b/i,/\b(Second Tier\s+[A-Z0-9]{1,4})\b/i,/\b(Loggia\s+[A-Z0-9]{1,4})\b/i,/\bBox\s*(?:No\.?|Number|:)\s*([A-Z0-9]{1,4})\b/i,/\bArena\b/i]){m=s.match(re);if(m){section=/^box/i.test(m[0])?'Box '+m[1]:(m[1]||m[0]);break}}
  if(!section){m=s.match(/\bSection\b\s*[:#-]?\s*(Stalls\s+[A-Z]{1,2}|[A-Z]{1,2})\b/i);if(m)section=/^stalls/i.test(m[1])?m[1]:'Stalls '+m[1]}
  section=String(section||'').replace(/\s+/g,' ').trim();if(/^box(?:\s+box)?$/i.test(section))section='';
- function between(label,nextLabels,pattern){const re=new RegExp('\\b'+label+'\\b([\\s\\S]{0,80}?)(?=\\b(?:'+nextLabels.join('|')+')\\b|$)','i'),block=(s.match(re)||[])[1]||'',v=block.match(new RegExp('(?:^|[^0-9A-Z])('+pattern+')(?:[^0-9A-Z]|$)','i'));return v?v[1]:''}
- let door=between('Door',['Section','Area','Row','Seat(?:s)?'],'\\d{1,3}');
- let row=between('Row',['Seat(?:s)?','Door','Section','Area'],'[A-Z0-9]{1,4}');
- let seat=between('Seat(?:s)?',['Door','Section','Area','Row'],'\\d{1,4}');
- if(section&&(!door||!row||!seat)){
-   const labels=s.match(/\bDoor\b[\s\S]{0,80}?\b(?:Section|Area)\b[\s\S]{0,80}?\bRow\b[\s\S]{0,80}?\bSeat(?:s)?\b/i);
-   if(labels){const after=s.slice((labels.index||0)+labels[0].length),secPos=after.toLowerCase().indexOf(section.toLowerCase());if(secPos>=0){const before=after.slice(0,secPos),afterSec=after.slice(secPos+section.length),beforeNums=before.match(/\b\d{1,3}\b/g)||[],afterNums=afterSec.match(/\b\d{1,4}\b/g)||[];if(!door&&beforeNums.length)door=beforeNums[beforeNums.length-1];if(!row&&afterNums.length)row=afterNums[0];if(!seat&&afterNums.length>1)seat=afterNums[1]}}
+
+ function fieldValue(label,nextLabels,pattern){
+  const re=new RegExp('\\b'+label+'\\b([\\s\\S]{0,60}?)(?=\\b(?:'+nextLabels.join('|')+')\\b|$)','i');
+  const block=(s.match(re)||[])[1]||'';
+  const v=block.match(new RegExp('(?:^|[^0-9A-Z])('+pattern+')(?:[^0-9A-Z]|$)','i'));
+  return v?v[1]:'';
  }
+ let door=fieldValue('Door',['Section','Area','Row','Seat(?:s)?'],'\\d{1,3}');
+ let row=fieldValue('Row',['Seat(?:s)?','Door','Section','Area'],'[A-Z0-9]{1,4}');
+ let seat=fieldValue('Seat(?:s)?',['Door','Section','Area','Row'],'\\d{1,4}');
+
+ /* RAH PDFs are sometimes extracted by PDF.js in visual-column order rather than reading order.
+    When that happens the labels can appear together and the values later. Anchor on the real section
+    and recover the nearest sensible numbers around it: Door before section, Row then Seat after it. */
+ if(section&&(!door||!row||!seat)){
+  const secPos=s.toLowerCase().indexOf(section.toLowerCase());
+  if(secPos>=0){
+   const before=s.slice(Math.max(0,secPos-180),secPos);
+   const after=s.slice(secPos+section.length,Math.min(s.length,secPos+section.length+180));
+   const beforeNums=(before.match(/\b\d{1,3}\b/g)||[]).filter(x=>+x>0);
+   const afterNums=(after.match(/\b\d{1,4}\b/g)||[]).filter(x=>+x>0);
+   if(!door){
+    const d=beforeNums.slice().reverse().find(x=>+x<=99);
+    if(d)door=d;
+   }
+   if(!row){
+    const r=afterNums.find(x=>+x<=99);
+    if(r)row=r;
+   }
+   if(!seat){
+    let seenRow=false;
+    const st=afterNums.find(x=>{if(!seenRow&&row&&x===String(row)){seenRow=true;return false}return seenRow?+x<=9999:false});
+    if(st)seat=st;
+    else if(afterNums.length>1)seat=afterNums[1];
+   }
+  }
+ }
+
+ /* Explicit labels still win if they occur later in the flattened text. */
+ const d2=(s.match(/\bDoor\b[^0-9]{0,20}(\d{1,3})\b/i)||[])[1];
+ const r2=(s.match(/\bRow\b[^A-Z0-9]{0,20}([A-Z0-9]{1,4})\b/i)||[])[1];
+ const s2=(s.match(/\bSeat(?:s)?\b[^0-9]{0,20}(\d{1,4})\b/i)||[])[1];
+ if(d2)door=d2;if(r2)row=r2;if(s2)seat=s2;
  return{door,section,row,seat};
 }
 
