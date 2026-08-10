@@ -1,5 +1,5 @@
-const CACHE = 'proms-finder-v13-banner-menu-overlay';
-const ASSETS = ['./', './index.html', './manifest.json', './rah-seating-plan.js', './rah-seating-plan2.jpeg', './data.json', './slide-menu-live.js?v=ef2a790c'];
+const CACHE = 'proms-finder-v14-direct-menu-ui';
+const ASSETS = ['./', './index.html', './manifest.json', './rah-seating-plan.js', './rah-seating-plan2.jpeg', './data.json'];
 
 self.addEventListener('install', evt => {
   evt.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(()=>{}));
@@ -13,22 +13,12 @@ self.addEventListener('activate', evt => {
 
 self.addEventListener('fetch', evt => {
   if (evt.request.mode === 'navigate') {
-    evt.respondWith(fetch(evt.request, {cache:'no-store'}).then(async res => {
-      const type=res.headers.get('content-type')||'';
-      if(!type.includes('text/html')) return res;
-      let html=await res.text();
-      html=html.replace(/<script[^>]+src=["'][^"']*(?:slide-menu-live|live-menu-ui)\.js[^"']*["'][^>]*><\/script>/gi,'');
-      html=html.replace('</body>','<script src="slide-menu-live.js?v=ef2a790c"></script></body>');
-      return new Response(html,{status:res.status,statusText:res.statusText,headers:res.headers});
-    }).catch(()=>caches.match('./index.html')));
-    return;
-  }
-  const u=new URL(evt.request.url);
-  if(u.pathname.endsWith('/slide-menu-live.js')) {
-    evt.respondWith(fetch(evt.request,{cache:'no-store'}));
+    evt.respondWith(fetch(evt.request, {cache:'no-store'}).catch(()=>caches.match('./index.html')));
     return;
   }
   evt.respondWith(caches.match(evt.request).then(cached => cached || fetch(evt.request).then(res => {
-    const copy=res.clone(); caches.open(CACHE).then(c=>c.put(evt.request,copy)); return res;
+    const copy=res.clone();
+    caches.open(CACHE).then(c => c.put(evt.request,copy));
+    return res;
   }).catch(()=>cached)));
 });
