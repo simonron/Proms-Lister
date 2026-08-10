@@ -1,5 +1,5 @@
-const CACHE = 'proms-finder-v9-ticket-reader-enabled';
-const ASSETS = ['./', './index.html', './manifest.json', './icon.png'];
+const CACHE = 'proms-finder-v10-excellent-ui-refresh';
+const ASSETS = ['./', './index.html', './manifest.json', './rah-seating-plan.js', './rah-seating-plan2.jpeg', './data.json'];
 
 self.addEventListener('install', evt => {
   evt.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(()=>{}));

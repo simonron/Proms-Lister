@@ -1,0 +1,9 @@
+{
+  "name": "BBC Proms 2026 Concert Diary",
+  "short_name": "Proms 2026",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f1e4",
+  "theme_color": "#f6f1e4"
+}
