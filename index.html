@@ -29,11 +29,33 @@ main{max-width:900px;margin:auto;padding:12px 14px 55px}.drop{border:2px dashed 
 .prom-number{display:inline-block;margin-bottom:5px;color:var(--maroon);font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
 .calendar-status{margin-top:10px;font-size:12px;color:var(--sage)}
 .menu-row{display:flex;justify-content:flex-end;margin-bottom:10px;position:relative}.menu-wrap{position:relative;display:inline-block}.menu-toggle{border:1px solid var(--rule);background:white;border-radius:10px;padding:9px 12px;font-weight:800}.menu-panel{position:absolute;right:0;top:calc(100% + 6px);z-index:80;min-width:230px;background:white;border:1px solid var(--rule);border-radius:12px;padding:7px;box-shadow:0 12px 30px rgba(0,0,0,.18);display:none}.menu-panel.open{display:block}.menu-panel button{display:block;width:100%;border:0;background:white;text-align:left;padding:10px 11px;border-radius:8px;font-weight:750}.menu-panel button:hover,.menu-panel button:focus{background:var(--paper2)}.menu-panel .danger{color:var(--red)}.menu-divider{height:1px;background:var(--rule);margin:5px}.concert-menu-row{display:flex;justify-content:flex-end;margin-top:10px}.arena-indicator{margin-top:12px;padding:12px;border:1px solid #b9d8bf;background:#eef8f0;color:#235b31;border-radius:10px;font-weight:900;text-align:center}.ticket-seat-grid.hidden-seats{display:none}
+
+/* Home menu is physically inside the banner */
+.home-hero{position:relative}
+.home-banner-menu{
+  position:absolute!important;
+  left:12px!important;
+  top:12px!important;
+  margin:0!important;
+  z-index:95!important;
+}
+.home-banner-menu .menu-toggle{
+  width:44px!important;
+  height:44px!important;
+  padding:0!important;
+  border:0!important;
+  background:rgba(255,255,255,.14)!important;
+  color:white!important;
+  font-size:29px!important;
+  line-height:44px!important;
+  border-radius:9px!important;
+}
+
 </style></head><body>
 <div id="homePage" class="app-page active">
   <div class="home-wrap">
-    <div class="menu-row"><div class="menu-wrap"><button id="homeMenuToggle" class="menu-toggle" type="button" aria-expanded="false">☰ Menu</button><div id="homeMenuPanel" class="menu-panel"><button id="homeImport" type="button">📥 Import &amp; Transfer</button><button id="homeCalendar" type="button">📅 Calendar</button><div class="menu-divider"></div><div id="calendarStatus" class="calendar-status">Calendar sync file not connected.</div></div></div></div>
     <section class="home-hero">
+      <div class="menu-row home-banner-menu"><div class="menu-wrap"><button id="homeMenuToggle" class="menu-toggle" type="button" aria-expanded="false">☰</button><div id="homeMenuPanel" class="menu-panel"><button id="homeImport" type="button">📥 Import &amp; Transfer</button><button id="homeCalendar" type="button">📅 Calendar</button><div class="menu-divider"></div><div id="calendarStatus" class="calendar-status">Calendar sync file not connected.</div></div></div></div>
       <h1>BBC Proms 2026 Concert Diary</h1>
       <p>Royal Albert Hall Proms, tickets and seat notes</p>
       <div class="season" style="color:#efd8bb;margin-top:12px">17 Jul–12 Sep 2026</div>
