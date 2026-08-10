@@ -27,5 +27,57 @@ function install(ticket){if(ticket&&Object.keys(ticket).length)activeTicket=tick
 function setTicket(t){if(t&&Object.keys(t).length)activeTicket=t;renderMarker()}
 function closeCorrectionUI(){pending=null;const bar=document.getElementById('rahCorrectionBar');if(bar)bar.remove();const read=document.getElementById('rahHoverReadout');if(read)read.style.display='none';const img=document.getElementById('rahImg');if(img)img.style.cursor=''}
 
-window.RAHSeatMap={mapRevision:MAP_REV,install,setTicket,locate,nearest,startCorrection,renderMarker,closeCorrectionUI,lookup:LOOKUP,currentTicket};
+/* Ticket reader repair for the 1956db3c demo branch.
+   The old reader trusted a saved ticketPage before checking that it matched
+   the currently selected concert.  This handler deliberately re-examines
+   every page of the attached PDF and chooses the best page for selected. */
+function cleanParsedSeat(parsed,text){
+ const out=Object.assign({},parsed||{}),u=String(text||'');
+ const sec=u.match(/(?:Section\s*[:\-]?\s*)?(Stalls\s+[A-Z]{1,2}|Rausing Circle\s+[A-Z]{1,2}|Circle\s+[A-Z]{1,2}|Gallery\s+[A-Z]{1,2}|Choir\s+[A-Z]{1,2}|Grand Tier\s+[A-Z]{1,2}|Second Tier\s+[A-Z]{1,2}|Loggia\s+[A-Z]{1,2}|Box\s+[A-Z0-9]+|Arena)/i);
+ if(sec)out.section=sec[1].replace(/\s+/g,' ').trim();
+ const row=u.match(/\bRow\s*[:\-]?\s*([A-Z0-9]+)/i);if(row)out.row=row[1];
+ const seat=u.match(/\bSeat(?:s)?\s*[:\-]?\s*([A-Z0-9–\-]+)/i);if(seat)out.seat=seat[1];
+ const door=u.match(/\bDoor\s*[:\-]?\s*([A-Z0-9]+)/i);if(door)out.door=door[1];
+ return out;
+}
+async function repairedReadSeatDetails(){
+ try{
+  if(typeof selected==='undefined'||!selected)throw Error('No concert is selected.');
+  const k=keyFor(selected),rec=await pdfGet(k);
+  if(!rec||!rec.blob)throw Error('No attached ticket is stored for this concert.');
+  const pages=await pdfPages(rec.blob);
+  if(!pages.length)throw Error('The attached ticket contains no readable PDF text.');
+  let best=0,bestScore=-Infinity;
+  for(let i=0;i<pages.length;i++){
+   let score=0;
+   try{score=ticketPageScore(selected,pages[i])}catch(_){
+    const txt=String(pages[i]||'').toLowerCase();
+    const words=String(selected.title||'').toLowerCase().split(/[^a-z0-9]+/).filter(w=>w.length>3);
+    score=words.filter(w=>txt.includes(w)).length*3;
+    if(selected.date&&typeof dateFromText==='function'&&dateFromText(pages[i])===selected.date)score+=12;
+   }
+   if(score>bestScore){bestScore=score;best=i}
+  }
+  const text=pages[best],parsed=cleanParsedSeat(parseTicket(text),text);
+  if(!parsed.door&&!parsed.section&&!parsed.row&&!parsed.seat)throw Error('Ticket found, but Door / Section / Row / Seat could not be identified.');
+  const all=loadTickets(),old=all[k]||{};
+  all[k]=Object.assign({},old,parsed,{hasTicket:true,ticketPage:best+1,updatedAt:Date.now()});
+  saveTickets(all);
+  const set=(id,v)=>{const el=document.getElementById(id);if(el&&v!=null)el.value=v};
+  set('door',parsed.door);set('section',parsed.section);set('row',parsed.row);set('seat',parsed.seat);
+  if(typeof render==='function')render();
+  if(typeof openDetail==='function')openDetail(selected);
+  alert('Ticket read: '+[parsed.door&&'Door '+parsed.door,parsed.section,parsed.row&&'Row '+parsed.row,parsed.seat&&'Seat '+parsed.seat].filter(Boolean).join(' · '));
+ }catch(err){console.error('Read Seat Details:',err);alert('Read Seat Details failed: '+(err&&err.message?err.message:err))}
+}
+document.addEventListener('click',function(ev){
+ const b=ev.target&&ev.target.closest&&ev.target.closest('button');
+ if(!b)return;
+ const label=String(b.textContent||'').replace(/\s+/g,' ').trim().toLowerCase();
+ if(label==='read seat details'||label==='read ticket'||label.includes('read seat')){
+  ev.preventDefault();ev.stopImmediatePropagation();repairedReadSeatDetails();
+ }
+},true);
+
+window.RAHSeatMap={mapRevision:MAP_REV,install,setTicket,locate,nearest,startCorrection,renderMarker,closeCorrectionUI,lookup:LOOKUP,currentTicket,repairedReadSeatDetails};
 })();
