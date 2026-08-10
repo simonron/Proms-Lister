@@ -3,8 +3,10 @@
   const css=document.createElement('style');
   css.textContent=`
     .home-wrap{position:relative}
-    .home-wrap>.menu-row{position:absolute!important;left:28px!important;top:calc(env(safe-area-inset-top) + 38px)!important;z-index:95!important;margin:0!important;justify-content:flex-start!important}
-    #homeMenuToggle{border:0!important;background:transparent!important;color:white!important;font-size:29px!important;width:44px!important;height:44px!important;padding:0!important;line-height:44px!important;border-radius:8px!important;overflow:hidden!important;text-indent:-9999px!important;position:relative!important}
+    .home-hero{position:relative}
+    .home-wrap>.menu-row{position:absolute!important;left:30px!important;top:calc(env(safe-area-inset-top) + 40px)!important;z-index:95!important;margin:0!important;justify-content:flex-start!important;height:44px!important}
+    .home-wrap>.menu-row .menu-wrap{position:static!important}
+    #homeMenuToggle{border:0!important;background:rgba(255,255,255,.14)!important;color:white!important;font-size:29px!important;width:44px!important;height:44px!important;padding:0!important;line-height:44px!important;border-radius:8px!important;overflow:hidden!important;text-indent:-9999px!important;position:relative!important}
     #homeMenuToggle::after{content:'☰';position:absolute;inset:0;text-indent:0;color:white;font-size:29px;line-height:44px;text-align:center}
     .concert-menu-row{justify-content:flex-start!important}
     #concertMenuToggle{border:0!important;background:transparent!important;font-size:29px!important;width:44px!important;height:44px!important;padding:0!important;line-height:44px!important;border-radius:8px!important;overflow:hidden!important;text-indent:-9999px!important;position:relative!important}
@@ -15,7 +17,7 @@
     .menu-panel button:hover,.menu-panel button:focus{background:var(--paper2)!important}
     #slideMenuShade{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:110;opacity:0;visibility:hidden;transition:opacity .22s ease}
     #slideMenuShade.open{opacity:1;visibility:visible}
-    @media(max-width:620px){.home-wrap>.menu-row{left:24px!important}}
+    @media(max-width:620px){.home-wrap>.menu-row{left:26px!important;top:calc(env(safe-area-inset-top) + 40px)!important}}
   `;
   document.head.appendChild(css);
   const shade=document.createElement('div'); shade.id='slideMenuShade'; document.body.appendChild(shade);
