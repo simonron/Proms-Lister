@@ -1,0 +1,19 @@
+(()=>{'use strict';
+function boot(){
+ const $=id=>document.getElementById(id);
+ // Search naming and controls.
+ const hb=$('homeBrowse');if(hb&&hb.childNodes[0])hb.childNodes[0].nodeValue='Search Proms';
+ const title=$('listPageTitle');if(title&&/Browse Proms/i.test(title.textContent))title.textContent='Search Proms';
+ const prev=$('prevDay'),next=$('nextDay'),weekend=$('weekend');if(prev)prev.textContent='Day −';if(next)next.textContent='Day +';if(weekend)weekend.remove();
+ // Full-page concert details instead of a bottom popup.
+ const st=document.createElement('style');st.textContent=`
+ .backdrop{display:none!important}.sheet{top:0!important;left:0!important;right:0!important;bottom:0!important;max-height:none!important;height:100dvh!important;border-radius:0!important;border:0!important;transform:translateY(100%)!important;padding-top:calc(env(safe-area-inset-top) + 14px)!important}.sheet.open{transform:none!important}.sheet .close{float:left!important;width:auto!important;border-radius:999px!important;padding:7px 12px!important}.sheet .close::after{content:' Back';font-weight:800}.card.past{background:#bfbfbf!important}.filters .chip{font-size:12px;padding:5px 8px}`;document.head.appendChild(st);
+ // Search always searches the complete season, including weekday/weekend expressions.
+ const dayIndex={sunday:0,monday:1,tuesday:2,wednesday:3,thursday:4,friday:5,saturday:6,sun:0,mon:1,tue:2,wed:3,thu:4,fri:5,sat:6};
+ function dayMatch(c,q){q=q.trim().toLowerCase();const d=new Date(c.date+'T12:00:00').getDay();if(q==='weekend')return d===0||d===6;if(q in dayIndex)return d===dayIndex[q];const m=q.match(/^(sun|mon|tue|wed|thu|fri|sat)(?:day)?\s+to\s+(sun|mon|tue|wed|thu|fri|sat)(?:day)?$/);if(!m)return null;const a=dayIndex[m[1]],b=dayIndex[m[2]];return a<=b?(d>=a&&d<=b):(d>=a||d<=b)}
+ if(typeof window.render==='function'&&window.concerts){const original=window.render;window.render=function(){const q=$('q')?.value.trim()||'';if(!q)return original();const f=$('from')?.value,t=$('to')?.value;if($('from'))$('from').value='';if($('to'))$('to').value='';original();if($('from'))$('from').value=f;if($('to'))$('to').value=t;if(q){document.querySelectorAll('#results .card').forEach(()=>{});const dm=window.concerts.filter(c=>dayMatch(c,q)===true);if(dm.length&&typeof window.wildcard==='function'){const old=$('q').value;$('q').value='';original();$('q').value=old;document.querySelectorAll('#results .card').forEach(x=>x.remove());document.querySelectorAll('#results .day').forEach(x=>x.remove());const all=window.loadTickets();let last='';for(const c of dm){if(c.date!==last){const d=document.createElement('div');d.className='day';d.textContent=window.fmt(c.date);$('results').appendChild(d);last=c.date}const el=document.createElement('article');el.className='card';el.innerHTML=`<div class="prom-number">${window.esc(window.promLabel(c))}</div><div class="top"><div class="title">${window.esc(c.title)}</div><div class="time">${window.esc(c.time)}</div></div><div class="venue">${window.esc(c.venue)}</div>${c.programme?`<div class="programme">${window.esc(c.programme)}</div>`:''}`;el.onclick=()=>window.openDetail(c);$('results').appendChild(el)}$('count').textContent=`${dm.length} Royal Albert Hall concert${dm.length===1?'':'s'}`}}};$('q').oninput=window.render}
+ // Past concert shading after each render.
+ const shade=()=>document.querySelectorAll('#results .card').forEach(card=>{const day=card.previousElementSibling?.classList.contains('day')?card.previousElementSibling:null;if(day){const dt=Date.parse(day.textContent);if(Number.isFinite(dt)&&dt<Date.now()-86400000)card.classList.add('past')}});new MutationObserver(shade).observe($('results'),{childList:true,subtree:true});shade();
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+})();
