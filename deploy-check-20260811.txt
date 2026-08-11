@@ -1,0 +1,8 @@
+Proms-Lister deployment check
+2026-08-11
+
+This file was committed immediately after the GitHub Pages source was changed to GitHub Actions.
+If this file is present in the deployed site, the new main-branch deployment path is working.
+
+User prompt: done
+Context: user confirmed changing Settings > Pages > Source to GitHub Actions.
