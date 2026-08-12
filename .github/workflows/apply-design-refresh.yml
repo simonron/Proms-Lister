@@ -49,3 +49,4 @@ body{background:linear-gradient(180deg,#f8f4e9 0,#f3ecdc 100%);min-height:100vh}
           git diff --cached --quiet && exit 0
           git commit -m "Refresh UI and darken past concerts"
           git push origin HEAD:design-refresh-past-concerts
+# retrigger: 2026-08-12
