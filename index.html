@@ -3,10 +3,10 @@
 <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:2rem">Loading Proms Lister…</div>
 <script>
 (async()=>{
- const r=await fetch('./Proms-Lister-Calendar/index.html?vr=3.3',{cache:'no-store'});if(!r.ok)throw Error('Could not load Proms Lister source: '+r.status);let h=await r.text();
- h=h.replace('<head>','<head><base href="/Proms-Lister/"><style>.home-menu{display:grid!important;grid-template-columns:1fr!important}.grid,.import-actions,.actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}.actions>*{width:100%!important}.card.past-concert{background:#cccccc!important}.card.past-concert.ticket,.card.past-concert.my-prom-card{background:#cccccc!important}@media(max-width:620px){.home-menu{grid-template-columns:1fr!important}.grid,.import-actions,.actions{grid-template-columns:repeat(2,minmax(0,1fr))!important}}</style>');
- /* Put the past-state class into the app's own card creation, rather than trying to infer it afterwards. */
- h=h.replace("el.className='card'+(t.hasTicket?' ticket':(t.myProm?' my-prom-card':''));","el.className='card'+(new Date(c.date+'T'+(c.time||'00:00')+':00')<new Date()?' past-concert':'')+(t.hasTicket?' ticket':(t.myProm?' my-prom-card':''));");
+ const r=await fetch('./Proms-Lister-Calendar/index.html?vr=3.4',{cache:'no-store'});if(!r.ok)throw Error('Could not load Proms Lister source: '+r.status);let h=await r.text();
+ h=h.replace('<head>','<head><base href="/Proms-Lister/"><style>.home-menu{display:grid!important;grid-template-columns:1fr!important}.grid,.import-actions,.actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}.actions>*{width:100%!important}.card.past-concert{background-color:#ccc!important}.card.past-concert.ticket,.card.past-concert.my-prom-card{background-color:#ccc!important}@media(max-width:620px){.home-menu{grid-template-columns:1fr!important}.grid,.import-actions,.actions{grid-template-columns:repeat(2,minmax(0,1fr))!important}}</style>');
+ /* Apply the past-event appearance directly while each card is created. */
+ h=h.replace("el.className='card'+(t.hasTicket?' ticket':(t.myProm?' my-prom-card':''));","el.className='card'+(t.hasTicket?' ticket':(t.myProm?' my-prom-card':''));const eventEnd=new Date(c.date+'T'+(c.time||'00:00')+':00');if(eventEnd<new Date()){el.classList.add('past-concert');el.style.setProperty('background-color','#cccccc','important');}");
  h=h.replace(/<a[^>]*href=["'][^"']*(?:seatplan|royalalberthall\.com\/plan-your-visit-essential-safety-information\/venue-and-seating-plan)[^"']*["'][^>]*>[\s\S]*?<\/a>/gi,'');
  h=h.replace(/<button[^>]*>\s*(?:Try standing|Go early)\s*<\/button>/gi,'');
  const ui=`<script src="/Proms-Lister/rah-seating-plan.js?v=20260812N"><\/script><script>
