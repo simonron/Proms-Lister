@@ -21,7 +21,7 @@ async function importPdfs(files){let ok=0,fail=[];for(const file of files){try{c
 async function openPdf(c){const k=keyFor(c),rec=await pdfGet(k);if(!rec){alert('No ticket is attached to this concert.');return}const type=rec.blob.type||mimeForName(rec.name)||'application/octet-stream',blob=new Blob([rec.blob],{type}),u=URL.createObjectURL(blob),t=ticketFor(c);if(type!=='application/pdf'&&!String(rec.name||'').toLowerCase().endsWith('.pdf')){window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),120000);return}let page=Number(t.ticketPage||0);if(!page){try{const pages=await pdfPages(rec.blob),all=loadTickets(),idx=bestTicketPage(c,pages,0);page=idx+1;all[k]={...t,ticketPage:page};saveTickets(all)}catch(e){page=1}}window.open(u+'#page='+page+'&zoom=page-width','_blank');setTimeout(()=>URL.revokeObjectURL(u),300000)}
 `;
  if(h.includes(anchor))h=h.replace(anchor,patch+anchor);
- const ui=`<script src="/Proms-Lister/rah-seating-plan.js?v=20260808G"><\/script><script>
+ const ui=`<script src="/Proms-Lister/rah-seating-plan.js?v=20260812DOTMENU2"><\/script><script>
 (function(){
  function removeOld(){document.querySelectorAll('button,a').forEach(e=>{const x=(e.textContent||'').trim().toLowerCase();if(x==='try standing'||x==='go early')e.remove()})}
  function shiftDay(delta){const f=document.getElementById('from'),t=document.getElementById('to');let base=f&&f.value?new Date(f.value+'T12:00:00'):new Date();base.setDate(base.getDate()+delta);const v=base.toISOString().slice(0,10);if(f)f.value=v;if(t)t.value=v;if(typeof render==='function')render()}
