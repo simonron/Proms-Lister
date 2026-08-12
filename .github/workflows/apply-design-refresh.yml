@@ -1,0 +1,56 @@
+name: Apply Proms design refresh
+on:
+  push:
+    branches:
+      - design-refresh-past-concerts
+    paths:
+      - '.github/workflows/apply-design-refresh.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: design-refresh-past-concerts
+      - name: Apply design refresh
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          marker='</style></head>'
+          css='''/* 2026 design refresh */
+          :root{--card:#fff;--card-past:#bfbfbf;--shadow:0 7px 22px rgba(54,35,25,.08)}
+          body{background:linear-gradient(180deg,#f8f4e9 0,#f3ecdc 100%);min-height:100vh}
+          .home-wrap{max-width:780px}.home-hero{text-align:left;padding:30px 28px;border-radius:18px}.home-hero h1{line-height:1.02}.home-menu{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.home-button{min-height:92px;border-radius:13px;padding:16px;box-shadow:var(--shadow)}.home-button.gold{grid-column:1/-1;min-height:84px}.calendar-status{grid-column:1/-1;padding:8px 2px}
+          .page-head{background:rgba(248,244,233,.97);box-shadow:0 3px 14px rgba(54,35,25,.06)}.search{border:1px solid var(--rule);border-radius:12px}.filters{gap:6px}
+          .list-main{max-width:940px}.day{position:sticky;top:154px;z-index:8;background:rgba(246,241,228,.94);padding:9px 3px 6px;margin:14px 0 8px;font-size:16px}.card{background:var(--card);border:1px solid #ddd2bc;border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow)}.card.past{background:var(--card-past);border-color:#aaa39a;box-shadow:none}.card.past .venue,.card.past .programme{color:#514d48}.card.past .prom-number,.card.past .time{color:#571820}.top{align-items:flex-start}.title{font-size:18px;line-height:1.2}.time{background:#f5ede2;border-radius:999px;padding:4px 8px}.card.past .time{background:rgba(255,255,255,.35)}
+          .sheet{background:linear-gradient(180deg,#faf6ec,#f4eddd)}.section,.ticketbox{background:rgba(255,255,255,.68);border-radius:12px;padding:12px 14px}
+          @media(max-width:620px){.home-menu{grid-template-columns:1fr}.home-button.gold,.calendar-status{grid-column:auto}.home-button{min-height:0}.home-hero{padding:23px 20px}.day{top:238px}.card{padding:13px 14px}.title{font-size:17px}}
+          '''
+          if '/* 2026 design refresh */' not in s:
+              s=s.replace(marker,css+'\n'+marker)
+          old="el.className='card'+(t.hasTicket?' ticket':(t.myProm?' my-prom-card':''));"
+          new="const isPast=new Date(c.date+'T23:59:59')<new Date(); el.className='card'+(isPast?' past':'')+(t.hasTicket?' ticket':(t.myProm?' my-prom-card':''));"
+          if old not in s:
+              raise SystemExit('concert card render marker not found')
+          s=s.replace(old,new)
+          p.write_text(s)
+          PY
+      - name: Sanity checks
+        run: |
+          grep -q "card.past" index.html
+          grep -q "const isPast=" index.html
+          grep -q "function render()" index.html
+          grep -q "data.json" index.html
+      - name: Commit refreshed UI
+        run: |
+          git config user.name "Proms Lister design bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Refresh UI and darken past concerts"
+          git push origin HEAD:design-refresh-past-concerts

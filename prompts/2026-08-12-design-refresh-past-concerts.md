@@ -1,0 +1,1 @@
+User requested: darken the background of concert items by 25% when the concert is in the past, and reorganise the Proms Lister UI for clearer display while retaining existing ticket, import, data and calendar behaviour.
