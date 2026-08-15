@@ -1,4 +1,4 @@
-const CACHE = 'proms-finder-v3';
+const CACHE = 'proms-finder-v4';
 const ASSETS = ['./', './index.html', './manifest.json', './icon.png'];
 
 self.addEventListener('install', evt => {
