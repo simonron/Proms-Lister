@@ -1,20 +1,89 @@
-/* Responsive/draggable floating controls for the RAH seating map. */
+/* Bottom-docked, editable controls for the RAH seating map. Proms Lister Vr4.3.0. */
 (function(){'use strict';
-const KEY='rahPanelPositions:v1';
-const IDS=['rahSeatDetailsPopup','rahCorrectionBar','rahCalibrationPanel'];
-function load(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){return{}}}
-function store(id,left,top){const a=load();a[id]={left,top};localStorage.setItem(KEY,JSON.stringify(a))}
-function viewport(){const v=window.visualViewport;return v?{left:v.offsetLeft||0,top:v.offsetTop||0,width:v.width||innerWidth,height:v.height||innerHeight}:{left:0,top:0,width:innerWidth,height:innerHeight}}
-function clamp(el,saveIt){if(!el||getComputedStyle(el).display==='none')return;const v=viewport(),r=el.getBoundingClientRect(),pad=8,maxL=Math.max(v.left+pad,v.left+v.width-r.width-pad),maxT=Math.max(v.top+pad,v.top+v.height-r.height-pad);let l=parseFloat(el.style.left),t=parseFloat(el.style.top);if(!Number.isFinite(l))l=r.left;if(!Number.isFinite(t))t=r.top;l=Math.min(Math.max(l,v.left+pad),maxL);t=Math.min(Math.max(t,v.top+pad),maxT);el.style.setProperty('left',l+'px','important');el.style.setProperty('top',t+'px','important');el.style.setProperty('right','auto','important');el.style.setProperty('bottom','auto','important');el.style.setProperty('transform','none','important');if(saveIt)store(el.id,l,t)}
-function defaults(el){const v=viewport(),r=el.getBoundingClientRect(),pad=10,l=v.left+(v.width-r.width)/2,t=el.id==='rahSeatDetailsPopup'?v.top+pad:v.top+v.height-r.height-pad;el.style.setProperty('left',Math.max(v.left+pad,l)+'px','important');el.style.setProperty('top',Math.max(v.top+pad,t)+'px','important');el.style.setProperty('right','auto','important');el.style.setProperty('bottom','auto','important');el.style.setProperty('transform','none','important');clamp(el,false)}
-function restore(el){const q=load()[el.id];requestAnimationFrame(()=>{if(q&&Number.isFinite(+q.left)&&Number.isFinite(+q.top)){el.style.setProperty('left',+q.left+'px','important');el.style.setProperty('top',+q.top+'px','important');clamp(el,false)}else defaults(el)})}
-function responsive(el){el.style.setProperty('box-sizing','border-box','important');el.style.setProperty('max-width','calc(100vw - 16px)','important');el.style.setProperty('max-height',el.id==='rahSeatDetailsPopup'?'calc(100vh - 16px)':'min(55vh, calc(100vh - 16px))','important');el.style.setProperty('overflow','auto','important');el.style.setProperty('touch-action','none','important');el.style.setProperty('cursor','move','important');if(el.id==='rahSeatDetailsPopup'){el.style.setProperty('display','flex','important');el.style.setProperty('flex-direction','row','important');el.style.setProperty('flex-wrap','nowrap','important');el.style.setProperty('white-space','nowrap','important')}else{el.style.setProperty('flex-wrap','wrap','important');el.style.setProperty('align-items','center','important');el.style.setProperty('justify-content','center','important')}el.querySelectorAll('button').forEach(b=>{b.style.maxWidth='100%';b.style.whiteSpace='normal'});el.querySelectorAll('input').forEach(i=>{i.style.maxWidth='calc(50vw - 28px)';i.style.minWidth='56px'})}
-function drag(el){if(el.dataset.rahResponsiveDrag==='1')return;el.dataset.rahResponsiveDrag='1';let d=null;el.addEventListener('pointerdown',e=>{if(e.target.closest&&e.target.closest('button,input,select,textarea,a'))return;const r=el.getBoundingClientRect();d={id:e.pointerId,dx:e.clientX-r.left,dy:e.clientY-r.top};try{el.setPointerCapture(e.pointerId)}catch(_){}e.preventDefault()},true);el.addEventListener('pointermove',e=>{if(!d||e.pointerId!==d.id)return;el.style.setProperty('left',(e.clientX-d.dx)+'px','important');el.style.setProperty('top',(e.clientY-d.dy)+'px','important');clamp(el,false);e.preventDefault()},true);const end=e=>{if(!d||e.pointerId!==d.id)return;d=null;clamp(el,true);try{el.releasePointerCapture(e.pointerId)}catch(_){}e.preventDefault()};el.addEventListener('pointerup',end,true);el.addEventListener('pointercancel',end,true)}
-function numeric(){for(const id of ['rahCalRow','rahCalSeat']){const i=document.getElementById(id);if(!i||i.dataset.rahNumeric==='1')continue;i.dataset.rahNumeric='1';i.type='text';i.inputMode='numeric';i.pattern='[0-9]*';i.addEventListener('input',()=>{i.value=i.value.replace(/[^0-9]/g,'')})}}
-function enhance(){IDS.forEach(id=>{const el=document.getElementById(id);if(!el)return;responsive(el);drag(el);if(el.dataset.rahPositionRestored!=='1'){el.dataset.rahPositionRestored='1';restore(el)}else clamp(el,false)});numeric()}
-const mo=new MutationObserver(()=>requestAnimationFrame(enhance));mo.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class']});
-function keep(){enhance();IDS.forEach(id=>clamp(document.getElementById(id),true))}
-window.addEventListener('resize',()=>requestAnimationFrame(keep));if(window.visualViewport){visualViewport.addEventListener('resize',()=>requestAnimationFrame(keep));visualViewport.addEventListener('scroll',()=>requestAnimationFrame(keep))}
-document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('#rahSetSeat');if(!b)return;const r=document.getElementById('rahCalRow'),s=document.getElementById('rahCalSeat');if(!r||!s)return;if(!/^\d+$/.test(r.value)||!/^\d+$/.test(s.value)){e.preventDefault();e.stopImmediatePropagation();const st=document.getElementById('rahCorrectionStatus');if(st)st.textContent='Enter numeric Row + Seat';return}r.value=String(parseInt(r.value,10));s.value=String(parseInt(s.value,10))},true);
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',enhance);else enhance();
+const VERSION='Vr4.3.0';
+let ticket={};
+
+function addVersion(){
+ const season=document.querySelector('.home-hero .season');
+ if(!season||document.getElementById('promsVersion'))return;
+ const v=document.createElement('div');v.id='promsVersion';v.textContent=VERSION;
+ v.style.cssText='margin-top:5px;color:#efd8bb;font-size:11px;font-weight:800;letter-spacing:.7px;text-align:center';
+ season.insertAdjacentElement('afterend',v);
+}
+function capture(t){if(t&&typeof t==='object')ticket=t;return ticket}
+function saveTicket(){
+ try{
+  if(typeof selected!=='undefined'&&selected&&typeof keyFor==='function'){
+   const all=JSON.parse(localStorage.getItem('promsTicketsV2')||'{}'),k=keyFor(selected);
+   all[k]=Object.assign({},all[k]||{},ticket);
+   localStorage.setItem('promsTicketsV2',JSON.stringify(all));
+  }
+ }catch(e){console.warn('RAH seat edit save failed',e)}
+}
+function value(id){const e=document.getElementById(id);return e?e.value.trim():''}
+function fieldsToTicket(){
+ ticket.door=value('rahEditDoor');
+ ticket.section=value('rahEditSection');
+ ticket.area=ticket.section;
+ const r=value('rahEditRow'),s=value('rahEditSeat');
+ ticket.row=r?parseInt(r,10):'';ticket.seat=s?parseInt(s,10):'';
+ saveTicket();
+}
+function field(id,label,val,numeric){
+ const w=document.createElement('label');w.style.cssText='display:flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;font-weight:800';
+ const t=document.createElement('span');t.textContent=label;
+ const i=document.createElement('input');i.id=id;i.value=val==null?'':String(val);i.placeholder=label;
+ i.type='text';if(numeric){i.inputMode='numeric';i.pattern='[0-9]*'}
+ i.style.cssText='width:'+(label==='Section'?'112px':'64px')+';min-width:0;padding:6px 7px;border:1px solid #aaa;border-radius:7px;background:white;color:#111';
+ i.addEventListener('input',()=>{if(numeric)i.value=i.value.replace(/[^0-9]/g,'');fieldsToTicket()});
+ i.addEventListener('change',()=>{fieldsToTicket();try{if(window.RAHSeatMap)window.RAHSeatMap.setTicket(ticket)}catch(_){}});
+ w.append(t,i);return w;
+}
+function editPopup(){
+ const p=document.getElementById('rahSeatDetailsPopup');if(!p)return;
+ if(p.dataset.editTicketKey===String(ticket&&ticket.door)+'|'+String(ticket&&ticket.section||ticket&&ticket.area)+'|'+String(ticket&&ticket.row)+'|'+String(ticket&&ticket.seat)&&p.querySelector('#rahEditSeat'))return;
+ p.dataset.editTicketKey=String(ticket&&ticket.door)+'|'+String(ticket&&ticket.section||ticket&&ticket.area)+'|'+String(ticket&&ticket.row)+'|'+String(ticket&&ticket.seat);
+ p.replaceChildren(
+  field('rahEditDoor','Door',ticket.door||'',false),
+  field('rahEditSection','Section',ticket.section||ticket.area||'',false),
+  field('rahEditRow','Row',ticket.row||'',true),
+  field('rahEditSeat','Seat',ticket.seat||'',true)
+ );
+ p.style.cssText='position:fixed!important;left:50%!important;bottom:66px!important;top:auto!important;transform:translateX(-50%)!important;z-index:2147483647!important;display:flex;flex-direction:row;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;padding:7px 9px;background:#fff!important;color:#111!important;border:1px solid #333;border-radius:10px;max-width:calc(100vw - 12px);box-sizing:border-box;overflow:auto';
+ const sl=document.getElementById('seatLabel');if(sl){sl.style.display='none';sl.style.minHeight='0';sl.style.padding='0'}
+}
+function moveDot(){
+ fieldsToTicket();
+ if(!ticket.section||!ticket.row||!ticket.seat){const st=document.getElementById('rahCorrectionStatus');if(st)st.textContent='Enter Section, Row and Seat first';return}
+ const text=[ticket.door&&('Door '+ticket.door),ticket.section,'Row '+ticket.row,'Seat '+ticket.seat].filter(Boolean).join(' ');
+ const old=window.prompt;window.prompt=()=>text;
+ try{window.RAHSeatMap.startCorrection()}finally{window.prompt=old}
+ const st=document.getElementById('rahCorrectionStatus');if(st)st.textContent='Click the exact seat position';
+}
+function standardBar(){
+ const b=document.getElementById('rahCorrectionBar');if(!b)return;
+ [...b.querySelectorAll('button')].forEach(x=>{const t=(x.textContent||'').trim().toLowerCase();if(t==='correct seat'||t==='undo')x.remove()});
+ let old=document.getElementById('rahCorrectionStatus');
+ if(old&&old.tagName!=='SPAN'){old.remove();old=null}
+ let mv=document.getElementById('rahMoveDot');if(!mv){mv=document.createElement('button');mv.id='rahMoveDot';mv.type='button';mv.textContent='Move Dot';mv.onclick=e=>{e.preventDefault();moveDot()};const cal=[...b.querySelectorAll('button')].find(x=>(x.textContent||'').trim()==='Calibration');b.insertBefore(mv,cal||null)}
+ if(!old){old=document.createElement('span');old.id='rahCorrectionStatus';old.textContent='';old.style.cssText='align-self:center;min-width:90px;text-align:center;font-size:12px';b.appendChild(old)}
+ b.style.cssText='position:fixed;left:50%;bottom:8px;top:auto;transform:translateX(-50%);z-index:2147483647;display:flex;gap:6px;padding:6px 8px;background:#fff;color:#111;border:1px solid #333;border-radius:10px;max-width:calc(100vw - 12px);flex-wrap:wrap;justify-content:center;box-sizing:border-box';
+}
+function calibration(){const p=document.getElementById('rahCalibrationPanel');if(p)p.style.cssText+=';position:fixed!important;left:50%!important;bottom:8px!important;top:auto!important;transform:translateX(-50%)!important;max-width:calc(100vw - 12px)!important;z-index:2147483647!important'}
+function scan(){const p=document.getElementById('rahScanReadout');if(p&&p.style.display!=='none')p.style.cssText+=';position:fixed!important;left:50%!important;bottom:70px!important;top:auto!important;transform:translateX(-50%)!important;max-width:calc(100vw - 16px)!important'}
+function enhance(){addVersion();standardBar();editPopup();calibration();scan()}
+function wrapMap(){
+ const m=window.RAHSeatMap;if(!m||m.__editableWrapped)return false;m.__editableWrapped=true;
+ const oi=m.install,os=m.setTicket,or=m.renderMarker,oa=m.addControls;
+ m.install=function(t){capture(t);const r=oi.apply(this,arguments);requestAnimationFrame(enhance);return r};
+ m.setTicket=function(t){capture(t);const r=os.apply(this,arguments);requestAnimationFrame(enhance);return r};
+ m.renderMarker=function(){const r=or.apply(this,arguments);requestAnimationFrame(enhance);return r};
+ m.addControls=function(){const r=oa.apply(this,arguments);requestAnimationFrame(enhance);return r};
+ return true;
+}
+function boot(){addVersion();wrapMap();enhance()}
+const mo=new MutationObserver(()=>requestAnimationFrame(boot));mo.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class']});
+window.addEventListener('resize',()=>requestAnimationFrame(enhance));
+if(window.visualViewport)visualViewport.addEventListener('resize',()=>requestAnimationFrame(enhance));
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
