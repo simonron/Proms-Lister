@@ -1,0 +1,9 @@
+(()=>{'use strict';
+const HEIF=/\.(heic|heif)$/i;
+function isHeif(f){return /image\/(heic|heif)/i.test(f.type||'')||HEIF.test(f.name||'')}
+async function convert(f){if(!isHeif(f))return f;if(!window.heic2any)throw new Error('HEIF converter unavailable');const out=await heic2any({blob:f,toType:'image/jpeg',quality:.92});const blob=Array.isArray(out)?out[0]:out;return new File([blob],(f.name||'ticket').replace(HEIF,'.jpg'),{type:'image/jpeg',lastModified:f.lastModified||Date.now()})}
+async function replaceFiles(input){const fs=[...(input.files||[])];if(!fs.some(isHeif))return false;const converted=[];for(const f of fs)converted.push(await convert(f));const dt=new DataTransfer();converted.forEach(f=>dt.items.add(f));input.files=dt.files;return true}
+const picker=document.getElementById('ticketPicker');if(picker){picker.setAttribute('accept','.pdf,application/pdf,image/*,.heic,.heif,image/heic,image/heif');picker.addEventListener('change',async e=>{try{if(await replaceFiles(picker)){e.stopImmediatePropagation();picker.dispatchEvent(new Event('change',{bubbles:true}))}}catch(err){e.stopImmediatePropagation();alert('HEIF image could not be converted: '+err.message)}},true)}
+/* Convert HEIF files before the application's drop handler receives them. */
+document.addEventListener('drop',async e=>{const fs=[...(e.dataTransfer?.files||[])];if(!fs.some(isHeif))return;e.preventDefault();e.stopImmediatePropagation();try{const converted=[];for(const f of fs)converted.push(await convert(f));const dt=new DataTransfer();converted.forEach(f=>dt.items.add(f));const drop=document.getElementById('drop');if(drop){const ev=new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:dt});drop.dispatchEvent(ev)}}catch(err){alert('HEIF image could not be converted: '+err.message)}},true);
+})();
