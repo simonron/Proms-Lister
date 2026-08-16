@@ -1,4 +1,4 @@
-const CACHE='proms-lister-version-3.0.18';
+const CACHE='proms-lister-version-3.0.19';
 const LOCAL=['./','./index.html','./styles-v3.css','./app-v3.js','./ticket-reader-v3.js','./seat-map-header-v3.js','./browse-controls-v3.js','./browse-fixes-v3.js','./detail-delegate-v3.js','./heif-input-v3.js','./version-v3.js','./page-chrome-v3.js','./ticket-popup-v3.js','./ticket-remove-v3.js','./manifest.json','./icon.png','./data.json','./rah-seating-plan2.jpeg'];
 const CDN=['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js','https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js','https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js','https://unpkg.com/tesseract.js@5/dist/tesseract.min.js','https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js'];
 const CORE=[...LOCAL,...CDN];
