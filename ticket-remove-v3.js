@@ -1,0 +1,11 @@
+(()=>{'use strict';
+const STORAGE='promsTicketsV2',DB='PromsListerPDFs',DBV=2,PDFS='pdfs';
+let currentKey='';
+function records(){try{return JSON.parse(localStorage.getItem(STORAGE)||'{}')}catch{return{}}}
+function hasTicket(key){return !!records()[key]?.hasTicket}
+function deleteStoredTicket(key){return new Promise((resolve,reject)=>{const q=indexedDB.open(DB,DBV);q.onerror=()=>reject(q.error);q.onupgradeneeded=()=>{const d=q.result;if(!d.objectStoreNames.contains(PDFS))d.createObjectStore(PDFS)};q.onsuccess=()=>{const d=q.result,tx=d.transaction(PDFS,'readwrite'),r=tx.objectStore(PDFS).delete(key);r.onerror=()=>reject(r.error);tx.oncomplete=()=>{d.close();resolve()};tx.onerror=()=>reject(tx.error)}})}
+async function removeTicket(key){if(!key||!hasTicket(key))return;if(!confirm('Remove the attached ticket from this Prom?\n\nSeat details and the Prom itself will be kept.'))return;try{await deleteStoredTicket(key);const a=records(),r=a[key]||{};r.hasTicket=false;delete r.ticketName;a[key]=r;localStorage.setItem(STORAGE,JSON.stringify(a));const card=[...document.querySelectorAll('.card')].find(x=>String(x.dataset.id)===String(key));if(card){card.classList.remove('ticket');card.querySelector('.sticker.ticket')?.remove();if(!r.myProm&&document.getElementById('mineToggle')?.textContent.trim()==='All Proms')card.remove()}document.getElementById('detailModal')?.remove();const count=document.getElementById('count');if(count){const n=document.querySelectorAll('#results .card').length;count.textContent=`${n} concert${n===1?'':'s'}`} }catch(e){alert('Ticket removal failed: '+e.message)}}
+function addRemoveButton(modal){if(!modal||modal.querySelector('#removeTicket'))return;const actions=modal.querySelector('.actions');if(!actions||!currentKey||!hasTicket(currentKey))return;const b=document.createElement('button');b.id='removeTicket';b.className='btn';b.textContent='Remove Ticket';b.addEventListener('click',()=>removeTicket(currentKey));const open=actions.querySelector('#openTicket');if(open)open.insertAdjacentElement('afterend',b);else actions.appendChild(b)}
+document.addEventListener('click',e=>{const card=e.target.closest?.('.card');if(card)currentKey=String(card.dataset.id||'')},true);
+new MutationObserver(()=>addRemoveButton(document.getElementById('detailModal'))).observe(document.documentElement,{childList:true,subtree:true});
+})();
