@@ -1,10 +1,10 @@
 (()=>{'use strict';
-function currentVersion(){return window.PROMS_LISTER_VERSION||'3.0.9'}
+function currentVersion(){return window.PROMS_LISTER_VERSION||'3.0.13'}
 function syncVersion(){document.querySelectorAll('.version').forEach(el=>{const v='Version '+currentVersion();if(el.textContent!==v)el.textContent=v});const t='Proms Lister — Version '+currentVersion();if(document.title!==t)document.title=t}
 function closePage(){const modal=document.querySelector('#mapModal,#detailModal');if(modal){modal.remove();return}const home=document.querySelector('[data-home]');if(home){home.click();return}if(history.length>1){history.back();return}window.close()}
-function ensureClose(){let b=document.getElementById('pageClose');if(!b){b=document.createElement('button');b.id='pageClose';b.className='page-close';b.type='button';b.setAttribute('aria-label','Close current page');b.title='Close';b.textContent='×';b.addEventListener('click',closePage);document.body.appendChild(b)}syncVersion()}
+function isStartPage(){return !!document.querySelector('.menu [data-go]')&&!document.querySelector('[data-home],#mapModal,#detailModal')}
+function ensureClose(){let b=document.getElementById('pageClose');if(isStartPage()){if(b)b.remove();syncVersion();return}if(!b){b=document.createElement('button');b.id='pageClose';b.className='page-close';b.type='button';b.setAttribute('aria-label','Close current page');b.title='Close';b.textContent='×';b.addEventListener('click',closePage);document.body.appendChild(b)}syncVersion()}
 const style=document.createElement('style');style.textContent='.page-close{position:fixed;right:max(12px,env(safe-area-inset-right));top:calc(env(safe-area-inset-top) + 12px);z-index:500;width:42px;height:42px;border:1px solid rgba(33,28,24,.25);border-radius:50%;background:rgba(255,255,255,.94);color:#4e141a;font-size:28px;font-weight:500;line-height:38px;text-align:center;box-shadow:0 4px 16px rgba(33,28,24,.2);padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}.page-close:active{transform:scale(.94)}@media(max-width:620px){.page-close{right:max(9px,env(safe-area-inset-right));top:calc(env(safe-area-inset-top) + 9px);width:40px;height:40px;line-height:36px}}';document.head.appendChild(style);
-/* Observe only direct app rerenders. Observing the whole document caused our own version text update to retrigger the observer indefinitely. */
 const start=()=>{ensureClose();const app=document.getElementById('app');if(app)new MutationObserver(()=>ensureClose()).observe(app,{childList:true})};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
