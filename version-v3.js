@@ -1,1 +1,1 @@
-(()=>{'use strict';window.PROMS_LISTER_VERSION='3.0.9';})();
+(()=>{'use strict';window.PROMS_LISTER_VERSION='3.0.10';})();
