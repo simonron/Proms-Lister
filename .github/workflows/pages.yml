@@ -23,12 +23,38 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Build offline-first site
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _site/vendor/tesseract-core _site/vendor/lang
+          rsync -a --exclude='.git' --exclude='_site' --exclude='node_modules' ./ _site/
+
+          curl -fL --retry 3 -o _site/vendor/pdf.min.js https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js
+          curl -fL --retry 3 -o _site/vendor/pdf.worker.min.js https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js
+          curl -fL --retry 3 -o _site/vendor/jszip.min.js https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js
+          curl -fL --retry 3 -o _site/vendor/heic2any.min.js https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js
+
+          curl -fL --retry 3 -o _site/vendor/tesseract.min.js https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js
+          curl -fL --retry 3 -o _site/vendor/tesseract-worker.min.js https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js
+          curl -fL --retry 3 -o _site/vendor/tesseract-core/tesseract-core.wasm.js https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1/tesseract-core.wasm.js
+          curl -fL --retry 3 -o _site/vendor/tesseract-core/tesseract-core-simd.wasm.js https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1/tesseract-core-simd.wasm.js
+          curl -fL --retry 3 -o _site/vendor/tesseract-core/tesseract-core-lstm.wasm.js https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1/tesseract-core-lstm.wasm.js
+          curl -fL --retry 3 -o _site/vendor/tesseract-core/tesseract-core-simd-lstm.wasm.js https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1/tesseract-core-simd-lstm.wasm.js
+          curl -fL --retry 3 -o _site/vendor/lang/eng.traineddata.gz https://tessdata.projectnaptha.com/4.0.0/eng.traineddata.gz
+
+          test -s _site/vendor/pdf.min.js
+          test -s _site/vendor/jszip.min.js
+          test -s _site/vendor/tesseract.min.js
+          test -s _site/vendor/lang/eng.traineddata.gz
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
