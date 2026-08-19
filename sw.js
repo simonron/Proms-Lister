@@ -1,14 +1,12 @@
-const CACHE='proms-lister-version-3.0.26';
+const CACHE='proms-lister-version-3.0.29';
+// Only files required to start and browse the app are pre-cached.
+// OCR, ZIP and HEIC libraries are deliberately excluded and must only be fetched by features that explicitly need them.
 const LOCAL=[
-  './','./index.html','./styles-v3.css','./app-v3.js','./performance-v3.js','./offline-config-v3.js',
+  './','./index.html','./styles-v3.css','./app-v3.js','./performance-v3.js',
   './ticket-reader-v3.js','./seat-map-header-v3.js','./browse-controls-v3.js','./browse-fixes-v3.js',
   './detail-delegate-v3.js','./heif-input-v3.js','./version-v3.js','./page-chrome-v3.js','./ticket-popup-v3.js','./ticket-remove-v3.js',
   './manifest.json','./icon.png','./data.json','./rah-seating-plan2.jpeg',
-  './vendor/pdf.min.js','./vendor/pdf.worker.min.js','./vendor/jszip.min.js','./vendor/heic2any.min.js',
-  './vendor/tesseract.min.js','./vendor/tesseract-worker.min.js',
-  './vendor/tesseract-core/tesseract-core.wasm.js','./vendor/tesseract-core/tesseract-core-simd.wasm.js',
-  './vendor/tesseract-core/tesseract-core-lstm.wasm.js','./vendor/tesseract-core/tesseract-core-simd-lstm.wasm.js',
-  './vendor/lang/eng.traineddata.gz'
+  './vendor/pdf.min.js','./vendor/pdf.worker.min.js'
 ];
 const NETWORK_TIMEOUT=1800;
 async function fetchWithTimeout(request,ms=NETWORK_TIMEOUT){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),ms);try{return await fetch(request,{signal:controller.signal})}finally{clearTimeout(timer)}}
