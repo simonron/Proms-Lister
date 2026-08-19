@@ -1,10 +1,10 @@
-const CACHE='proms-lister-version-3.0.29';
+const CACHE='proms-lister-version-3.0.31';
 // Only files required to start and browse the app are pre-cached.
 // OCR, ZIP and HEIC libraries are deliberately excluded and must only be fetched by features that explicitly need them.
 const LOCAL=[
   './','./index.html','./styles-v3.css','./app-v3.js','./performance-v3.js',
   './ticket-reader-v3.js','./seat-map-header-v3.js','./browse-controls-v3.js','./browse-fixes-v3.js',
-  './detail-delegate-v3.js','./heif-input-v3.js','./version-v3.js','./page-chrome-v3.js','./ticket-popup-v3.js','./ticket-remove-v3.js',
+  './detail-delegate-v3.js','./detail-ticket-first-v3.js','./version-v3.js','./page-chrome-v3.js','./ticket-popup-v3.js','./ticket-remove-v3.js',
   './manifest.json','./icon.png','./data.json','./rah-seating-plan2.jpeg',
   './vendor/pdf.min.js','./vendor/pdf.worker.min.js'
 ];
