@@ -1,4 +1,4 @@
-const CACHE='proms-lister-version-3.0.36';
+const CACHE='proms-lister-version-3.0.37';
 const LOCAL=['./styles-v3.css','./app-v3.js','./performance-v3.js','./seat-map-header-v3.js','./browse-controls-v3.js','./browse-fixes-v3.js','./detail-delegate-v3.js','./detail-ticket-first-v3.js','./version-v3.js','./page-chrome-v3.js','./ticket-popup-v3.js','./ticket-remove-v3.js','./manifest.json','./icon.png','./data.json','./rah-seating-plan2.jpeg'];
 self.addEventListener('install',event=>{event.waitUntil((async()=>{const cache=await caches.open(CACHE);await Promise.allSettled(LOCAL.map(async url=>{const r=await fetch(new Request(url,{cache:'reload'}));if(r.ok)await cache.put(url,r)}))})());self.skipWaiting()});
 self.addEventListener('activate',event=>{event.waitUntil((async()=>{for(const key of await caches.keys())if(key.startsWith('proms-lister-version-')&&key!==CACHE)await caches.delete(key);await self.clients.claim()})())});
