@@ -1,4 +1,5 @@
 (()=>{'use strict';
-// Navigation must remain synchronous and immediate. Do not intercept home-page
-// choices, show a loading overlay, or replay clicks later.
+// Keep startup intentionally light. OCR is loaded by the page, but the expensive
+// recognition worker only starts when an image ticket is actually processed.
+// Stored tickets are not rescanned automatically on every page load.
 })();
