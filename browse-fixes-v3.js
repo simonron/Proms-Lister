@@ -1,14 +1,17 @@
 (()=>{'use strict';
-const BUILD='Version 3.0.5';
+const coreHandlers=new Map();
 function install(){
- const v=document.querySelector('.hero .version');if(v&&v.textContent!==BUILD)v.textContent=BUILD;
  const results=document.getElementById('results');if(!results)return;
  results.querySelectorAll('.card').forEach(card=>{
   const id=card.dataset.id;if(!id)return;
-  /* renderList replaces the result cards after every search/date change. The core
-     click handlers were attached only to the previous cards, so filtered cards
-     became inert. Re-bind each newly rendered card here. */
-  if(!card.dataset.detailBound){card.dataset.detailBound='1';card.addEventListener('click',()=>{const allCards=[...document.querySelectorAll('.card')];const target=allCards.find(x=>x===card);if(!target)return;/* core app exposes detail only through its own card handler; trigger a fresh unfiltered core bind by preserving card identity is impossible, so use the stable data id through a synthetic double navigation fallback. */const ev=new CustomEvent('proms-v3-open-detail',{bubbles:true,detail:{id}});document.dispatchEvent(ev)})}
+  /* Core app binds onclick when a list is first rendered. Keep that exact handler by concert id.
+     Filter/date redraws replace the DOM cards without re-running core bind(), so new cards use the
+     preserved core handler instead of a second detail/ticket implementation. */
+  if(typeof card.onclick==='function'&&!card.dataset.coreRestored)coreHandlers.set(id,card.onclick);
+  if(typeof card.onclick!=='function'&&coreHandlers.has(id)){
+    card.onclick=coreHandlers.get(id);
+    card.dataset.coreRestored='1';
+  }
   if(card.querySelector('.browseTick'))return;
   let all={};try{all=JSON.parse(localStorage.getItem('promsTicketsV2')||'{}')}catch{}
   const r=all[id]||{};
