@@ -1,18 +1,5 @@
-const CACHE='proms-lister-version-3.0.35';
-// Only files required to start and browse the app are pre-cached.
-// OCR is loaded from CDN by the page and its expensive worker starts only when needed.
-const LOCAL=[
-  './','./index.html','./styles-v3.css','./app-v3.js','./performance-v3.js',
-  './seat-map-header-v3.js','./browse-controls-v3.js','./browse-fixes-v3.js',
-  './detail-delegate-v3.js','./detail-ticket-first-v3.js','./version-v3.js','./page-chrome-v3.js','./ticket-popup-v3.js','./ticket-remove-v3.js',
-  './manifest.json','./icon.png','./data.json','./rah-seating-plan2.jpeg'
-];
-const NETWORK_TIMEOUT=1800;
-async function fetchWithTimeout(request,ms=NETWORK_TIMEOUT){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),ms);try{return await fetch(request,{signal:controller.signal})}finally{clearTimeout(timer)}}
-function cacheable(response){return response&&response.ok}
-async function put(cache,request,response){if(cacheable(response)){try{await cache.put(request,response.clone())}catch{}}return response}
-async function match(cache,request){return(await cache.match(request))||(await cache.match(request,{ignoreSearch:true}))}
-function refresh(cache,request){fetch(new Request(request,{cache:'no-cache'})).then(response=>put(cache,request,response)).catch(()=>{})}
-self.addEventListener('install',event=>{event.waitUntil((async()=>{const cache=await caches.open(CACHE);await Promise.allSettled(LOCAL.map(async url=>{const request=new Request(url,{cache:'reload'});const response=await fetch(request);await put(cache,request,response)}))})());self.skipWaiting()});
-self.addEventListener('activate',event=>{event.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(key=>key.startsWith('proms-lister-version-')&&key!==CACHE).map(key=>caches.delete(key)));await self.clients.claim()})())});
-self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;const url=new URL(event.request.url);if(url.origin!==self.location.origin)return;event.respondWith((async()=>{const cache=await caches.open(CACHE);const hit=await match(cache,event.request);if(hit){refresh(cache,event.request);return hit}try{return await put(cache,event.request,await fetchWithTimeout(new Request(event.request,{cache:'no-cache'})))}catch{if(event.request.mode==='navigate')return(await cache.match('./index.html',{ignoreSearch:true}))||Response.error();return Response.error()}})())});
+const CACHE='proms-lister-version-3.0.36';
+const LOCAL=['./styles-v3.css','./app-v3.js','./performance-v3.js','./seat-map-header-v3.js','./browse-controls-v3.js','./browse-fixes-v3.js','./detail-delegate-v3.js','./detail-ticket-first-v3.js','./version-v3.js','./page-chrome-v3.js','./ticket-popup-v3.js','./ticket-remove-v3.js','./manifest.json','./icon.png','./data.json','./rah-seating-plan2.jpeg'];
+self.addEventListener('install',event=>{event.waitUntil((async()=>{const cache=await caches.open(CACHE);await Promise.allSettled(LOCAL.map(async url=>{const r=await fetch(new Request(url,{cache:'reload'}));if(r.ok)await cache.put(url,r)}))})());self.skipWaiting()});
+self.addEventListener('activate',event=>{event.waitUntil((async()=>{for(const key of await caches.keys())if(key.startsWith('proms-lister-version-')&&key!==CACHE)await caches.delete(key);await self.clients.claim()})())});
+self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;const url=new URL(event.request.url);if(url.origin!==self.location.origin)return;if(event.request.mode==='navigate'){event.respondWith(fetch(new Request(event.request,{cache:'no-store'})).catch(async()=>{const c=await caches.open(CACHE);return(await c.match('./index.html'))||Response.error()}));return}event.respondWith((async()=>{const c=await caches.open(CACHE);try{const r=await fetch(new Request(event.request,{cache:'no-cache'}));if(r.ok)c.put(event.request,r.clone()).catch(()=>{});return r}catch{return(await c.match(event.request,{ignoreSearch:true}))||Response.error()}})())});
