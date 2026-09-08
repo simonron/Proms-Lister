@@ -1,17 +1,19 @@
 (()=>{'use strict';
-const coreHandlers=new Map();
+let coreSeed=null,coreClick=null;
+function rememberCoreCard(card){if(!coreClick&&typeof card.onclick==='function'){coreSeed=card;coreClick=card.onclick}}
+function openCoreDetail(id){
+ if(!coreSeed||!coreClick)return false;
+ const old=coreSeed.dataset.id;
+ coreSeed.dataset.id=String(id);
+ try{coreClick.call(coreSeed);return true}finally{coreSeed.dataset.id=old}
+}
 function install(){
  const results=document.getElementById('results');if(!results)return;
- results.querySelectorAll('.card').forEach(card=>{
+ const cards=[...results.querySelectorAll('.card')];
+ cards.forEach(rememberCoreCard);
+ cards.forEach(card=>{
   const id=card.dataset.id;if(!id)return;
-  /* Core app binds onclick when a list is first rendered. Keep that exact handler by concert id.
-     Filter/date redraws replace the DOM cards without re-running core bind(), so new cards use the
-     preserved core handler instead of a second detail/ticket implementation. */
-  if(typeof card.onclick==='function'&&!card.dataset.coreRestored)coreHandlers.set(id,card.onclick);
-  if(typeof card.onclick!=='function'&&coreHandlers.has(id)){
-    card.onclick=coreHandlers.get(id);
-    card.dataset.coreRestored='1';
-  }
+  card.onclick=e=>{if(e.target.closest('.browseTick'))return;openCoreDetail(id)};
   if(card.querySelector('.browseTick'))return;
   let all={};try{all=JSON.parse(localStorage.getItem('promsTicketsV2')||'{}')}catch{}
   const r=all[id]||{};
@@ -22,6 +24,9 @@ function install(){
   cb.addEventListener('change',e=>{e.stopPropagation();let d={};try{d=JSON.parse(localStorage.getItem('promsTicketsV2')||'{}')}catch{};d[id]=Object.assign({},d[id]||{},{myProm:cb.checked});localStorage.setItem('promsTicketsV2',JSON.stringify(d));card.classList.toggle('my',cb.checked);let s=card.querySelector('.stickers');if(s){let tag=s.querySelector('.sticker.my');if(cb.checked&&!tag){tag=document.createElement('span');tag.className='sticker my';tag.textContent='My Prom';s.prepend(tag)}else if(!cb.checked&&tag)tag.remove()}});
  });
 }
+/* Selecting the same PDF/photo twice does not fire a file-input change event in many browsers.
+   Clear the picker immediately before the core Attach/replace ticket button opens it. */
+document.addEventListener('click',e=>{if(e.target.closest('#attachTicket')){const p=document.getElementById('ticketPicker');if(p)p.value=''}},true);
 const mo=new MutationObserver(()=>requestAnimationFrame(install));mo.observe(document.documentElement,{childList:true,subtree:true});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
 })();
